@@ -14,14 +14,16 @@ npx hardhat --network bscTestnet OrangeAvatar:deploy
 
 ### OrangeAvatar
 
-deploy
+#### deploy
 
 ```
 npx hardhat --network bscTestnet OrangeAvatar:deploy
 ```
 
-mint
+#### mint
+
+mint nft to a list of address
 
 ```
-npx hardhat --network bscTestnet OrangeAvatar:mint
+npx hardhat --network bscTestnet OrangeAvatar:mint <address1, addres2, addres3...>
 ```

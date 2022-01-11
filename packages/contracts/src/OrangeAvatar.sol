@@ -46,6 +46,8 @@ contract OrangeAvatar is
     _baseTokenURI = baseTokenURI;
 
     _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+    _setupRole(MINTER_ROLE, _msgSender());
+    _setupRole(GOVERNANCE_ROLE, _msgSender());
   }
 
   function baseURI() external view returns (string memory) {

@@ -10,14 +10,42 @@ task("OrangeAvatar:deploy").setAction(async (_, hre) => {
 task("OrangeAvatar:mint")
   .addVariadicPositionalParam("to", "list of address")
   .setAction(async ({ to }, hre) => {
-    const avatar = await getDeployed(
+    const avatar = await getDeployed<OrangeAvatar__factory>(
       hre,
       "OrangeAvatar",
-      "0x405Da0de4f7395f590eC58cf1b4f35BDa1D7144b"
+      "0x2614E2C8e46AC07C8dbdD8045F8f12b66F9dc564"
     );
 
     for (let index = 0; index < to.length; index++) {
       const address = to[index];
-      await avatar.mint(address);
+      let tx;
+      try {
+        tx = await avatar.mint(address, {
+          gasLimit: "1000000"
+        });
+        await tx.wait();
+        console.log(`mint avatar to ${address} success. (tx: ${tx.hash})`);
+      } catch (error) {
+        console.error(`mint avatar to ${address} fail. (tx: ${tx?.hash})`);
+        console.error(error);
+      }
+    }
+  });
+
+task("OrangeAvatar:list-nft")
+  .addParam("address", "target address")
+  .setAction(async ({ address }, hre) => {
+    const avatar = await getDeployed<OrangeAvatar__factory>(
+      hre,
+      "OrangeAvatar",
+      "0x2614E2C8e46AC07C8dbdD8045F8f12b66F9dc564"
+    );
+
+    const totalNFTNum = await avatar.balanceOf(address);
+    const num = totalNFTNum.toNumber();
+    console.log("Total NFT:", num);
+    for (let index = 0; index < num; index++) {
+      const nft = await avatar.tokenOfOwnerByIndex(address, index);
+      console.log(`No.${index + 1}: ${nft.toNumber()}`);
     }
   });
