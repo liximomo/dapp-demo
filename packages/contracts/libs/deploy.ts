@@ -1,6 +1,20 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { ContractFactory } from "ethers";
 
+export async function getDeployed<
+  Factory extends ContractFactory = ContractFactory
+>(
+  hre: HardhatRuntimeEnvironment,
+  name: string,
+  address: string
+): Promise<ReturnType<Factory["deploy"]>> {
+  const ContractFactory = (await hre.ethers.getContractFactory(
+    name
+  )) as Factory;
+  const instance = ContractFactory.attach(address);
+  return instance;
+}
+
 export async function deploy<Factory extends ContractFactory = ContractFactory>(
   hre: HardhatRuntimeEnvironment,
   name: string,
@@ -16,9 +30,9 @@ export async function deploy<Factory extends ContractFactory = ContractFactory>(
   const ContractFactory = (await hre.ethers.getContractFactory(
     name
   )) as Factory;
-  const instace = await ContractFactory.deploy(...(args || []));
+  const instance = await ContractFactory.deploy(...(args || []));
 
-  console.log(`Deploy ${name} at address: ${instace.address}`);
+  console.log(`Deploy ${name} at address: ${instance.address}`);
 
-  return instace;
+  return instance;
 }

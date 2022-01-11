@@ -1,15 +1,27 @@
 ## Tasks
 
-### FlipRouter
+run a task:
+
+```
+npx hardhat --network <netowrk> <taskName> [taskArgs]
+```
+
+example:
+
+```
+npx hardhat --network bscTestnet OrangeAvatar:deploy
+```
+
+### OrangeAvatar
 
 deploy
 
 ```
- npx hardhat --network okexMainnet fliprouter:deploy --weth <addr> --router <addr>
+npx hardhat --network bscTestnet OrangeAvatar:deploy
 ```
 
-setroute
+mint
 
 ```
- npx hardhat --network okexMainnet fliprouter:set-route <addr> --route tokenA-tokenB-...-tokenX-tokenY
+npx hardhat --network bscTestnet OrangeAvatar:mint
 ```
