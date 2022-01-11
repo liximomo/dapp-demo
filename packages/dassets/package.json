@@ -1,0 +1,17 @@
+{
+  "name": "@dapp/dassets",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "codegen": "node ./scripts/codegen.js",
+    "dev": "run-s codegen watch:ts",
+    "build": "run-s clean codegen build:ts",
+    "clean": "rimraf libs apps tokens exchanges",
+    "watch:ts": "tsc -p tsconfig.json -w",
+    "build:ts": "tsc -p tsconfig.json --module commonjs"
+  },
+  "dependencies": {
+    "@dapp/shared": "^1.0.0"
+  }
+}

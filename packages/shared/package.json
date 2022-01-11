@@ -1,0 +1,12 @@
+{
+  "name": "@dapp/shared",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsc -p tsconfig.json -w",
+    "prebuild": "rimraf lib esm",
+    "build": "run-p build:*",
+    "build:esm": "tsc -p tsconfig.json --module esnext --outDir esm",
+    "build:cjs": "tsc -p tsconfig.json --module commonjs --outDir lib"
+  }
+}

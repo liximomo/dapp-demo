@@ -1,0 +1,18 @@
+.Button {
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: #51ccc5;
+  border-radius: 100px;
+  color: #ffffff;
+}
+
+.Button:hover {
+  background: lighten(#51ccc5, 10%);
+}
+
+.Button:disabled {
+  background: #d1d2d3;
+}

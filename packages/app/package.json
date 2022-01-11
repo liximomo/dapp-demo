@@ -1,0 +1,55 @@
+{
+  "name": "@dapp/app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
+    "eject": "react-scripts eject"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "dependencies": {
+    "@dapp/contracts": "^1.0.0",
+    "@dapp/dassets": "^1.0.0",
+    "@dapp/shared": "^1.0.0",
+    "@reach/dialog": "0.16.0",
+    "@reach/tooltip": "0.16.0",
+    "@walletconnect/ethereum-provider": "1.6.5",
+    "axios": "0.21.1",
+    "big.js": "6.1.1",
+    "classnames": "2.3.1",
+    "ethers": "5.4.7",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-router-dom": "^5.2.0",
+    "use-subscription": "^1.5.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.11.4",
+    "@testing-library/react": "^11.1.0",
+    "@testing-library/user-event": "^12.1.10",
+    "@types/big.js": "^6.1.1",
+    "@types/jest": "^26.0.15",
+    "@types/node": "^12.0.0",
+    "@types/react": "^17.0.0",
+    "@types/react-dom": "^17.0.0",
+    "@types/react-router-dom": "^5.1.8",
+    "customize-cra": "1.0.0",
+    "node-sass": "^6.0.1",
+    "postcss-custom-media": "7.0.8",
+    "react-app-rewired": "2.1.8",
+    "react-scripts": "4.0.3"
+  }
+}

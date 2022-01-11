@@ -1,0 +1,78 @@
+.Container {
+  background: rgb(255, 255, 255);
+  border-radius: 24px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-width: 90%;
+  width: 350px;
+  padding: 0;
+}
+
+.Head {
+  background: #f4f7fa;
+  font-size: 14px;
+  font-weight: bold;
+  position: relative;
+}
+
+.Title {
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+  padding-right: 50px;
+  height: 48px;
+}
+
+.CloseBtn {
+  cursor: pointer;
+  position: absolute;
+  top: 13px;
+  right: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+
+  img {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.Body {
+  padding: 20px 20px 32px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  height: 60px;
+  padding: 0 30px;
+  color: rgb(255, 128, 180);
+  background: rgb(250, 250, 250);
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover {
+    background: darken(rgb(250, 250, 250), 3%);
+  }
+}
+
+.item + .item {
+  margin-top: 12px;
+}
+
+.itemIcon {
+  width: 32px;
+  height: 32px;
+}
+
+.itemTitle {
+  margin-left: 6px;
+}

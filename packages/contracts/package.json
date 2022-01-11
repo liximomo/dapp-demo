@@ -1,0 +1,40 @@
+{
+  "name": "@dapp/contracts",
+  "version": "1.0.0",
+  "scripts": {
+    "compile": "hardhat compile --no-typechain",
+    "types": "TS_NODE_TRANSPILE_ONLY=1 hardhat typechain",
+    "build": "node ../../scripts/build-contract.js",
+    "test": "TS_NODE_TRANSPILE_ONLY=1 hardhat test"
+  },
+  "files": [
+    "abis",
+    "artifacts",
+    "typechain"
+  ],
+  "devDependencies": {
+    "@dapp/dassets": "^1.0.0",
+    "@dapp/shared": "^1.0.0",
+    "@nomiclabs/hardhat-ethers": "2.0.1",
+    "@nomiclabs/hardhat-waffle": "2.0.1",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
+    "@openzeppelin/hardhat-upgrades": "^1.9.0",
+    "@typechain/ethers-v5": "6.0.5",
+    "@types/chai": "4.2.18",
+    "@types/mocha": "8.2.2",
+    "@types/node": "15.0.2",
+    "chai": "4.3.0",
+    "ethereum-waffle": "3.2.2",
+    "ethers": "5.4.7",
+    "hardhat": "2.4.1",
+    "hardhat-typechain": "0.3.5",
+    "solc": "0.8.4",
+    "ts-generator": "0.1.1",
+    "ts-node": "9.1.1",
+    "typechain": "4.0.3",
+    "web3": "^1.6.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "4.3.2"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "commonjs",
+    "outDir": "dist"
+  },
+  "include": ["./libs", "./scripts", "./tasks", "./test"],
+  "files": ["./hardhat.config.ts"]
+}
