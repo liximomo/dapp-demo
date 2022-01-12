@@ -1,4 +1,3 @@
-// contracts/GameItem.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -8,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "hardhat/console.sol";
 
 contract OrangeAvatar is
   AccessControlEnumerable,
@@ -17,10 +17,20 @@ contract OrangeAvatar is
   using Counters for Counters.Counter;
   using Strings for uint256;
 
+  struct Category {
+    string rarity; // category URI, a super set of token's uri (it can be either uri or a path (if specify a base URI))
+    uint256 timestamp;
+  }
+
   bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
   bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
 
   Counters.Counter private _tokenIds;
+  Counters.Counter private _categoryIds;
+
+  mapping(uint256 => Category) public categoryInfo;
+  mapping(string => uint256) public categoryIdByRarity;
+  mapping(uint256 => uint256) public idToCategory;
 
   string private _baseTokenURI;
 
@@ -37,7 +47,7 @@ contract OrangeAvatar is
   modifier onlyMinter() {
     require(
       hasRole(MINTER_ROLE, _msgSender()),
-      "ChefNFT::onlyMinter::only MINTER role"
+      "OrangeAvatar::onlyMinter::only MINTER role"
     );
     _;
   }
@@ -48,10 +58,19 @@ contract OrangeAvatar is
     _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
     _setupRole(MINTER_ROLE, _msgSender());
     _setupRole(GOVERNANCE_ROLE, _msgSender());
+
+    _addCategoryInfo("SSR");
+    _addCategoryInfo("SR");
+    _addCategoryInfo("R");
+    _addCategoryInfo("N");
   }
 
   function baseURI() external view returns (string memory) {
     return _baseURI();
+  }
+
+  function getRarity(uint256 tokenId) external view returns (string memory) {
+    return categoryInfo[idToCategory[tokenId]].rarity;
   }
 
   /**
@@ -89,11 +108,22 @@ contract OrangeAvatar is
    *
    * - the caller must have the `MINTER_ROLE`.
    */
-  function mint(address to) external onlyMinter {
+  function mint(address to, uint256 categoryId)
+    external
+    onlyMinter
+    returns (uint256 id)
+  {
+    require(
+      _categoryIds.current() >= categoryId,
+      "OrangeAvatar::mint::invalid categoryId"
+    );
+
     uint256 newId = _tokenIds.current();
     _tokenIds.increment();
+    idToCategory[newId] = categoryId;
 
     _mint(to, newId);
+    return newId;
   }
 
   function _baseURI() internal view override returns (string memory) {
@@ -119,6 +149,19 @@ contract OrangeAvatar is
     returns (bool)
   {
     return super.supportsInterface(interfaceId);
+  }
+
+  /// @notice add category (group of tokens)
+  /// @param _rarity a name of a category
+  function _addCategoryInfo(string memory _rarity) internal {
+    // id starts from 1
+    _categoryIds.increment();
+    uint256 newId = _categoryIds.current();
+    categoryInfo[newId] = Category({
+      rarity: _rarity,
+      timestamp: block.timestamp
+    });
+    categoryIdByRarity[_rarity] = newId;
   }
 
   /**

@@ -20,7 +20,7 @@ task("OrangeAvatar:mint")
       const address = to[index];
       let tx;
       try {
-        tx = await avatar.mint(address, {
+        tx = await avatar.mint(address, 0, {
           gasLimit: "1000000"
         });
         await tx.wait();

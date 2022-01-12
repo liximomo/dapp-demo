@@ -31,6 +31,7 @@ export async function deploy<Factory extends ContractFactory = ContractFactory>(
     name
   )) as Factory;
   const instance = await ContractFactory.deploy(...(args || []));
+  await instance.deployed();
 
   console.log(`Deploy ${name} at address: ${instance.address}`);
 
