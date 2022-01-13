@@ -4,26 +4,20 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "hardhat/console.sol";
 
-contract OrangeAvatar is
-  AccessControlEnumerable,
-  ERC721Enumerable,
-  ERC721Pausable
-{
+contract OrangeAvatar is Ownable, ERC721Enumerable, ERC721Pausable {
   using Counters for Counters.Counter;
   using Strings for uint256;
 
   struct Category {
-    string rarity; // category URI, a super set of token's uri (it can be either uri or a path (if specify a base URI))
-    uint256 timestamp;
+    string name;
   }
 
-  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-  bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
+  address public minter;
 
   Counters.Counter private _tokenIds;
   Counters.Counter private _categoryIds;
@@ -34,43 +28,32 @@ contract OrangeAvatar is
 
   string private _baseTokenURI;
 
-  /// @dev only the one having a GOVERNANCE_ROLE can continue an execution
-  modifier onlyGovernance() {
-    require(
-      hasRole(GOVERNANCE_ROLE, _msgSender()),
-      "OrangeAvatar::onlyGovernance::only GOVERNANCE role"
-    );
-    _;
-  }
-
-  /// @dev only the one having a MINTER_ROLE can continue an execution
+  /**
+   * @dev Throws if called by any account other than the minter.
+   */
   modifier onlyMinter() {
-    require(
-      hasRole(MINTER_ROLE, _msgSender()),
-      "OrangeAvatar::onlyMinter::only MINTER role"
-    );
+    require(minter == _msgSender(), "OrangeAvatar::only minter");
     _;
   }
 
   constructor(string memory baseTokenURI) ERC721("OrangeAvatar", "OVATAR") {
     _baseTokenURI = baseTokenURI;
 
-    _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-    _setupRole(MINTER_ROLE, _msgSender());
-    _setupRole(GOVERNANCE_ROLE, _msgSender());
+    minter = _msgSender();
 
     _addCategoryInfo("SSR");
     _addCategoryInfo("SR");
     _addCategoryInfo("R");
     _addCategoryInfo("N");
+    _addCategoryInfo("SOUVENIR");
   }
 
   function baseURI() external view returns (string memory) {
     return _baseURI();
   }
 
-  function getRarity(uint256 tokenId) external view returns (string memory) {
-    return categoryInfo[idToCategory[tokenId]].rarity;
+  function categoryName(uint256 tokenId) external view returns (string memory) {
+    return categoryInfo[idToCategory[tokenId]].name;
   }
 
   /**
@@ -145,23 +128,24 @@ contract OrangeAvatar is
     public
     view
     virtual
-    override(AccessControlEnumerable, ERC721, ERC721Enumerable)
+    override(ERC721, ERC721Enumerable)
     returns (bool)
   {
     return super.supportsInterface(interfaceId);
   }
 
-  /// @notice add category (group of tokens)
-  /// @param _rarity a name of a category
-  function _addCategoryInfo(string memory _rarity) internal {
+  function _addCategoryInfo(string memory name) internal {
     // id starts from 1
     _categoryIds.increment();
     uint256 newId = _categoryIds.current();
-    categoryInfo[newId] = Category({
-      rarity: _rarity,
-      timestamp: block.timestamp
-    });
-    categoryIdByRarity[_rarity] = newId;
+    categoryInfo[newId] = Category({name: name});
+    categoryIdByRarity[name] = newId;
+  }
+
+  function setMinter(address newMinter) external {
+    if (minter == _msgSender()) {
+      minter = newMinter;
+    }
   }
 
   /**
@@ -169,7 +153,7 @@ contract OrangeAvatar is
    * automatically added as a prefix to the value returned in {tokenURI},
    * or to the token ID if {tokenURI} is empty.
    */
-  function setBaseURI(string memory newBaseURI) external onlyGovernance {
+  function setBaseURI(string memory newBaseURI) external onlyOwner {
     _baseTokenURI = newBaseURI;
   }
 }

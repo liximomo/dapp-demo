@@ -19,12 +19,15 @@ const privateKey = Buffer.from(
   "444447150fb4002cd752221516c7a8d85d65a533b320875b74c4e582b4d335a6",
   "hex"
 );
+// 0xF9A2E4B92e3A7356c31862F963634172c12878A5
 const truthHolder = privateToAddress(privateKey);
 const ssrNum = 1;
-const srNum = 3;
-const rNum = 5;
-const nNum = 10;
-const totalNum = ssrNum + srNum + rNum + nNum;
+const srNum = 2;
+const rNum = 3;
+const nNum = 4;
+const souvenirNum = 5;
+const totalRareNum = ssrNum + srNum + rNum + nNum;
+const totalNum = totalRareNum + souvenirNum;
 
 describe("ChefVender", function () {
   let alice: SignerWithAddress;
@@ -61,9 +64,9 @@ describe("ChefVender", function () {
       avatar.address,
       busd.address,
       truthHolder,
-      [ssrNum, srNum, rNum, nNum]
+      [ssrNum, srNum, rNum, nNum, souvenirNum]
     );
-    await avatar.grantRole(ethers.utils.id("MINTER_ROLE"), launcher.address);
+    await avatar.setMinter(launcher.address);
   });
 
   describe("claim", () => {
@@ -87,31 +90,92 @@ describe("ChefVender", function () {
       expect(await avatar.balanceOf(alice.address)).to.eq(1);
     });
 
-    it("should distribute nft random", async function () {
+    it("should only allow claim once", async function () {
       const signature = getSignature(privateKey, alice.address);
+      expect(await avatar.balanceOf(alice.address)).to.eq(0);
+      await launcher.claim(alice.address, signature);
+      expect(await avatar.balanceOf(alice.address)).to.eq(1);
+      await expect(launcher.claim(alice.address, signature)).to.be.revertedWith(
+        "can't claim repeatedly"
+      );
+    });
+
+    it("should distribute nft random", async function () {
+      const signers = await ethers.getSigners();
       for (let index = 0; index < totalNum; index++) {
-        await launcher.claim(alice.address, signature);
+        const signature = getSignature(privateKey, signers[index].address);
+        await launcher.claim(signers[index].address, signature);
       }
       const count = {
         SSR: 0,
         SR: 0,
         R: 0,
-        N: 0
+        N: 0,
+        SOUVENIR: 0
       };
 
       for (let index = 0; index < totalNum; index++) {
-        const tokenId = await avatar.tokenOfOwnerByIndex(alice.address, index);
-        const rarity = await avatar.getRarity(tokenId);
-        count[rarity]++;
+        const tokenId = await avatar.tokenOfOwnerByIndex(
+          signers[index].address,
+          0
+        );
+        const ctg = await avatar.categoryName(tokenId);
+        count[ctg]++;
       }
 
-      await expect(launcher.claim(alice.address, signature)).to.be.revertedWith(
-        "no NFT"
-      );
+      const signature = getSignature(privateKey, signers[totalNum].address);
+      await expect(
+        launcher.claim(signers[totalNum].address, signature)
+      ).to.be.revertedWith("no NFT");
       expect(count.SSR).to.eq(ssrNum);
       expect(count.SR).to.eq(srNum);
       expect(count.R).to.eq(rNum);
       expect(count.N).to.eq(nNum);
+      expect(count.SOUVENIR).to.eq(souvenirNum);
+    });
+
+    it("should distribute rare nft first", async function () {
+      const count = {
+        SSR: 0,
+        SR: 0,
+        R: 0,
+        N: 0,
+        SOUVENIR: 0
+      };
+
+      const signers = await ethers.getSigners();
+      for (let index = 0; index < totalRareNum; index++) {
+        const signature = getSignature(privateKey, signers[index].address);
+        await launcher.claim(signers[index].address, signature);
+      }
+      for (let index = 0; index < totalRareNum; index++) {
+        const tokenId = await avatar.tokenOfOwnerByIndex(
+          signers[index].address,
+          0
+        );
+        const ctg = await avatar.categoryName(tokenId);
+        count[ctg]++;
+      }
+
+      expect(count.SSR).to.eq(ssrNum);
+      expect(count.SR).to.eq(srNum);
+      expect(count.R).to.eq(rNum);
+      expect(count.N).to.eq(nNum);
+      expect(count.SOUVENIR).to.eq(0);
+
+      for (let index = totalRareNum; index < totalNum; index++) {
+        const signature = getSignature(privateKey, signers[index].address);
+        await launcher.claim(signers[index].address, signature);
+      }
+      for (let index = totalRareNum; index < totalNum; index++) {
+        const tokenId = await avatar.tokenOfOwnerByIndex(
+          signers[index].address,
+          0
+        );
+        const ctg = await avatar.categoryName(tokenId);
+        count[ctg]++;
+      }
+      expect(count.SOUVENIR).to.eq(souvenirNum);
     });
   });
 
@@ -131,8 +195,7 @@ describe("ChefVender", function () {
     it("should revert", async function () {
       const aliceLauncher = launcher.connect(alice);
       await launcher.startDraw();
-      const signature = getSignature(privateKey, alice.address);
-      await launcher.claim(alice.address, signature);
+      await launcher.mint(alice.address, "N");
       const tokenId = await avatar.tokenOfOwnerByIndex(alice.address, 0);
       await expect(aliceLauncher.draw(tokenId)).to.be.revertedWith(
         "insufficient_funds"
@@ -142,14 +205,47 @@ describe("ChefVender", function () {
     it("should work", async function () {
       const aliceLauncher = launcher.connect(alice);
       await launcher.startDraw();
-      const signature = getSignature(privateKey, alice.address);
-      await launcher.claim(alice.address, signature);
+      await launcher.mint(alice.address, "N");
       const tokenId = await avatar.tokenOfOwnerByIndex(alice.address, 0);
       await busd.transfer(launcher.address, parseEther("100"));
       await aliceLauncher.draw(tokenId);
       const balance = await busd.balanceOf(alice.address);
       expect(balance).to.gte(parseEther("10"));
       expect(balance).to.lte(parseEther("20"));
+    });
+
+    it("should distribute award randomly", async function () {
+      const aliceLauncher = launcher.connect(alice);
+      await launcher.startDraw();
+      await launcher.setDrawDistributions(
+        [0, 0, 0],
+        [
+          [10, 2],
+          [20, 1]
+        ]
+      );
+      await launcher.mint(alice.address, "N");
+      await launcher.mint(alice.address, "N");
+      await launcher.mint(alice.address, "N");
+      await launcher.mint(alice.address, "N");
+      await busd.transfer(launcher.address, parseEther("100"));
+      const drawReward = [];
+      const initBalance = await busd.balanceOf(alice.address);
+      await aliceLauncher.draw(0);
+      const firstBalance = await busd.balanceOf(alice.address);
+      drawReward.push(firstBalance.sub(initBalance));
+      await aliceLauncher.draw(1);
+      const sencondBalance = await busd.balanceOf(alice.address);
+      drawReward.push(sencondBalance.sub(firstBalance));
+      await aliceLauncher.draw(2);
+      const thirdBalance = await busd.balanceOf(alice.address);
+      drawReward.push(thirdBalance.sub(sencondBalance));
+      expect(
+        drawReward.map(a => +ethers.utils.formatEther(a)).sort((a, b) => a - b)
+      ).to.eql([10, 10, 20]);
+      expect(aliceLauncher.draw(3)).to.be.revertedWith(
+        "all rewards have been drawed"
+      );
     });
   });
 

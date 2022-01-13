@@ -29,8 +29,23 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
   ERC20 public rewardToken;
   bool public drawEnabled = false;
 
+  mapping(address => bool) public claimRecords;
   mapping(uint256 => DrawInfo) public drawRecords;
   mapping(string => uint256) public categorySupply;
+  uint256[3] private _drawDistributionsFixed = [0, 0, 0];
+  uint256[2][] private _drawDistributions = [
+    [10, 2],
+    [11, 9],
+    [12, 20],
+    [13, 18],
+    [14, 6],
+    [15, 18],
+    [16, 12],
+    [17, 15],
+    [18, 16],
+    [19, 12],
+    [20, 1]
+  ];
 
   event Claimed(address indexed user, uint256 indexed tokenId);
   event Drawed(address indexed user, address indexed token, uint256 amount);
@@ -49,22 +64,31 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     address _avatarNFT,
     address _rewardToken,
     address _truthHolder,
-    uint256[4] memory _supply
+    uint256[5] memory _supply
   ) {
     avatarNFT = OrangeAvatar(_avatarNFT);
     rewardToken = ERC20(_rewardToken);
     truthHolder = _truthHolder;
 
-    _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
     _setupRole(GOVERNANCE_ROLE, _msgSender());
 
     categorySupply["SSR"] = _supply[0]; // 1;
     categorySupply["SR"] = _supply[1]; // 10;
     categorySupply["R"] = _supply[2]; // 20;
     categorySupply["N"] = _supply[3]; // 100;
+    categorySupply["SOUVENIR"] = _supply[4]; // 100;
   }
 
   function totalNum() public view returns (uint256) {
+    return
+      categorySupply["SSR"] +
+      categorySupply["SR"] +
+      categorySupply["R"] +
+      categorySupply["N"] +
+      categorySupply["SOUVENIR"]; // 100;
+  }
+
+  function totalRareNum() public view returns (uint256) {
     return
       categorySupply["SSR"] +
       categorySupply["SR"] +
@@ -86,8 +110,13 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
       addr == truthHolder,
       "OrangeLauncher::claim::only accept truthHolder signed message"
     );
+    require(
+      claimRecords[user] == false,
+      "OrangeLauncher::claim::can't claim repeatedly"
+    );
 
-    uint256 id = _mint(user, _getRarity(string(signature)));
+    claimRecords[user] = true;
+    uint256 id = mint(user, _getCategory(string(signature)));
     emit Claimed(user, id);
   }
 
@@ -108,7 +137,7 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
       "OrangeLauncher::draw::can't draw repeatedly"
     );
 
-    uint256 amouont = _random(id.toString(), 10, 20);
+    uint256 amouont = _drawReward(id);
     amouont = amouont * 10**rewardToken.decimals();
     require(
       amouont > 0,
@@ -126,43 +155,66 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     emit Drawed(_msgSender(), address(rewardToken), amouont);
   }
 
-  function _mint(address to, string memory rarity)
-    internal
-    returns (uint256 id)
-  {
-    uint256 ctdId = avatarNFT.categoryIdByRarity(rarity);
-    id = avatarNFT.mint(to, ctdId);
-    categorySupply[rarity] = categorySupply[rarity] - 1;
+  function _drawReward(uint256 id) internal returns (uint256) {
+    require(
+      _drawDistributions.length > 0,
+      "OrangeLauncher::_drawReward::all rewards have been drawed"
+    );
+    uint256 value;
+    string memory ctg = avatarNFT.categoryName(id);
+    if (keccak256(bytes(ctg)) == keccak256("SSR")) {
+      value = _drawDistributionsFixed[0];
+    } else if (keccak256(bytes(ctg)) == keccak256("SR")) {
+      value = _drawDistributionsFixed[1];
+    } else if (keccak256(bytes(ctg)) == keccak256("R")) {
+      value = _drawDistributionsFixed[2];
+    } else if (keccak256(bytes(ctg)) == keccak256("N")) {
+      uint256 index = _random(id.toString(), 0, _drawDistributions.length - 1);
+      uint256[2] storage info = _drawDistributions[index];
+      value = info[0];
+      info[1] = info[1] - 1;
+      if (info[1] == 0) {
+        _removeDrawDistributionsAt(index);
+      }
+    } else {
+      value = 0;
+    }
+
+    return value;
   }
 
-  function _getRarity(string memory prefix)
+  function _getCategory(string memory prefix)
     internal
     view
     returns (string memory)
   {
-    uint256 left = totalNum();
-    require(left > 0, "OrangeLauncher::_getRarity::no NFT");
+    uint256 rareleft = totalRareNum();
+    string memory category;
 
-    uint256 id = _random(prefix, 1, left);
-
-    string memory rarity;
-    uint256 pivot0 = categorySupply["SSR"];
-    uint256 pivot1 = categorySupply["SSR"] + categorySupply["SR"];
-    uint256 pivot2 = pivot1 + categorySupply["R"];
-    uint256 pivot3 = pivot2 + categorySupply["N"];
-    if (id >= 1 && id <= pivot0) {
-      rarity = "SSR";
-    } else if (id >= categorySupply["SSR"] + 1 && id <= pivot1) {
-      rarity = "SR";
-    } else if (id >= pivot1 + 1 && id <= pivot2) {
-      rarity = "R";
-    } else if (id >= pivot2 + 1 && id <= pivot3) {
-      rarity = "N";
+    if (rareleft > 0) {
+      uint256 id = _random(prefix, 1, rareleft);
+      uint256 pivot0 = categorySupply["SSR"];
+      uint256 pivot1 = categorySupply["SSR"] + categorySupply["SR"];
+      uint256 pivot2 = pivot1 + categorySupply["R"];
+      uint256 pivot3 = pivot2 + categorySupply["N"];
+      if (id >= 1 && id <= pivot0) {
+        category = "SSR";
+      } else if (id >= categorySupply["SSR"] + 1 && id <= pivot1) {
+        category = "SR";
+      } else if (id >= pivot1 + 1 && id <= pivot2) {
+        category = "R";
+      } else if (id >= pivot2 + 1 && id <= pivot3) {
+        category = "N";
+      } else {
+        require(false, "OrangeLauncher::_getCategory::something wrong");
+      }
     } else {
-      require(false, "OrangeLauncher::_getRarity::something wrong");
+      uint256 left = totalNum();
+      require(left > 0, "OrangeLauncher::_getCategory::no NFT");
+      category = "SOUVENIR";
     }
 
-    return rarity;
+    return category;
   }
 
   function _random(
@@ -224,6 +276,23 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     return ECDSA.recover(ECDSA.toEthSignedMessageHash(message), signature);
   }
 
+  function _removeDrawDistributionsAt(uint256 index) internal {
+    _drawDistributions[index] = _drawDistributions[
+      _drawDistributions.length - 1
+    ];
+    _drawDistributions.pop();
+  }
+
+  function mint(address to, string memory category)
+    public
+    onlyGovernance
+    returns (uint256 id)
+  {
+    uint256 ctdId = avatarNFT.categoryIdByRarity(category);
+    id = avatarNFT.mint(to, ctdId);
+    categorySupply[category] = categorySupply[category] - 1;
+  }
+
   /**
    * @dev Pauses all token transfers.
    *
@@ -250,6 +319,20 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
 
   function stopDraw() external onlyGovernance {
     drawEnabled = false;
+  }
+
+  function setDrawDistributions(
+    uint256[3] memory drawDistributionsFixed,
+    uint256[2][] memory drawDistributions
+  ) external onlyGovernance {
+    _drawDistributionsFixed[0] = drawDistributionsFixed[0];
+    _drawDistributionsFixed[1] = drawDistributionsFixed[1];
+    _drawDistributionsFixed[2] = drawDistributionsFixed[2];
+
+    delete _drawDistributions;
+    for (uint256 index = 0; index < drawDistributions.length; index++) {
+      _drawDistributions.push(drawDistributions[index]);
+    }
   }
 
   function setTruthHolder(address _truthHolder) external onlyGovernance {

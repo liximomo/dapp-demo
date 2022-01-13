@@ -1,6 +1,8 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { ContractFactory } from "ethers";
 
+let printed = false;
+
 export async function getDeployed<
   Factory extends ContractFactory = ContractFactory
 >(
@@ -20,12 +22,13 @@ export async function deploy<Factory extends ContractFactory = ContractFactory>(
   name: string,
   args: Parameters<Factory["deploy"]>
 ): Promise<ReturnType<Factory["deploy"]>> {
-  const [deployer] = await hre.ethers.getSigners();
-
-  console.log("Deploying contracts with the account:", deployer.address);
-
-  console.log("Account address:", await deployer.getAddress());
-  console.log("Account balance:", (await deployer.getBalance()).toString());
+  if (!printed) {
+    printed = true;
+    const [deployer] = await hre.ethers.getSigners();
+    console.log("Account address:", deployer.address);
+    console.log("Account balance:", (await deployer.getBalance()).toString());
+    console.log("");
+  }
 
   const ContractFactory = (await hre.ethers.getContractFactory(
     name
