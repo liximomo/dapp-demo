@@ -8,7 +8,7 @@ task("OrangeAvatar:list-nft")
     const avatar = await getDeployed<OrangeAvatar__factory>(
       hre,
       "OrangeAvatar",
-      "0xCd7ec26002D7cD0bD030d285c5f6C5024b7d1b77"
+      "0xD50c6b1f82fA418066e50CF2a715a5A29add674B"
     );
 
     const totalNFTNum = await avatar.balanceOf(address);
@@ -16,6 +16,7 @@ task("OrangeAvatar:list-nft")
     console.log("Total NFT:", num);
     for (let index = 0; index < num; index++) {
       const nft = await avatar.tokenOfOwnerByIndex(address, index);
-      console.log(`No.${index + 1}: ${nft.toNumber()}`);
+      const category = await avatar.categoryName(nft);
+      console.log(`No.${index + 1}: ${nft.toNumber()} (${category})`);
     }
   });

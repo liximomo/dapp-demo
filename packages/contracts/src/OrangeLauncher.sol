@@ -116,7 +116,7 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     );
 
     claimRecords[user] = true;
-    uint256 id = mint(user, _getCategory(string(signature)));
+    uint256 id = _mint(user, _getCategory(string(signature)));
     emit Claimed(user, id);
   }
 
@@ -227,19 +227,20 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
       "OrangeLauncher::_random::min must be less than or equal to max"
     );
 
-    uint256 rand = uint256(
-      keccak256(
-        abi.encodePacked(
-          string(
-            abi.encodePacked(
-              seed,
-              blockhash(block.number - 1),
-              _addressToAsciiString(_msgSender())
+    uint256 rand =
+      uint256(
+        keccak256(
+          abi.encodePacked(
+            string(
+              abi.encodePacked(
+                seed,
+                blockhash(block.number - 1),
+                _addressToAsciiString(_msgSender())
+              )
             )
           )
         )
-      )
-    );
+      );
 
     // num in [0, max-min] + [min,min] = [min, max]
     uint256 num = (rand % (max - min + 1)) + min;
@@ -283,14 +284,23 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     _drawDistributions.pop();
   }
 
-  function mint(address to, string memory category)
-    public
-    onlyGovernance
+
+  function _mint(address to, string memory category)
+    internal
     returns (uint256 id)
   {
     uint256 ctdId = avatarNFT.categoryIdByRarity(category);
     id = avatarNFT.mint(to, ctdId);
     categorySupply[category] = categorySupply[category] - 1;
+  }
+
+
+  function mint(address to, string memory category)
+    public
+    onlyGovernance
+    returns (uint256 id)
+  {
+    _mint(to, category);
   }
 
   /**

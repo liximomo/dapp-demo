@@ -86,7 +86,7 @@ describe("ChefVender", function () {
     it("should work", async function () {
       const signature = getSignature(privateKey, alice.address);
       expect(await avatar.balanceOf(alice.address)).to.eq(0);
-      await launcher.claim(alice.address, signature);
+      await launcher.claim(alice.address, signature); 
       expect(await avatar.balanceOf(alice.address)).to.eq(1);
     });
 

@@ -5,6 +5,7 @@ import {
   OrangeAvatar__factory
 } from "../types";
 import { deploy, getDeployed } from "../libs/deploy";
+import { getSignature } from "../libs/sign";
 
 task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
   // config
@@ -45,7 +46,7 @@ task("OrangeLauncher:mint")
     const launcher = await getDeployed<OrangeLauncher__factory>(
       hre,
       "OrangeLauncher",
-      "0xd68C9576D2786Ed9ACb98C6736423c730D41fCA7"
+      "0x36beE7B36e4914E6E0BaB17164842e1dcbfa1AdC"
     );
 
     let tx;
@@ -57,6 +58,33 @@ task("OrangeLauncher:mint")
       console.log(`mint avatar to ${to} success. (tx: ${tx.hash})`);
     } catch (error) {
       console.error(`mint avatar to ${to} fail. (tx: ${tx?.hash})`);
+      console.error(error);
+    }
+  });
+
+task("OrangeLauncher:claim")
+  .addParam("user")
+  .setAction(async ({ user, type }, hre) => {
+    const launcher = await getDeployed<OrangeLauncher__factory>(
+      hre,
+      "OrangeLauncher",
+      "0x36beE7B36e4914E6E0BaB17164842e1dcbfa1AdC"
+    );
+
+    const privateKey = Buffer.from(
+      "444447150fb4002cd752221516c7a8d85d65a533b320875b74c4e582b4d335a6",
+      "hex"
+    );
+    const sig = getSignature(privateKey, user);
+    let tx;
+    try {
+      tx = await launcher.claim(user, sig, {
+        gasLimit: "1000000"
+      });
+      await tx.wait();
+      console.log(`${user} claim success. (tx: ${tx.hash})`);
+    } catch (error) {
+      console.error(`${user} claim fail. (tx: ${tx?.hash})`);
       console.error(error);
     }
   });
