@@ -284,7 +284,6 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     _drawDistributions.pop();
   }
 
-
   function _mint(address to, string memory category)
     internal
     returns (uint256 id)
@@ -293,7 +292,6 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     id = avatarNFT.mint(to, ctdId);
     categorySupply[category] = categorySupply[category] - 1;
   }
-
 
   function mint(address to, string memory category)
     public
