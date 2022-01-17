@@ -48,6 +48,7 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
   ];
 
   event Claimed(address indexed user, uint256 indexed tokenId);
+  event Minted(address indexed user, uint256 indexed tokenId);
   event Drawed(address indexed user, address indexed token, uint256 amount);
   event TokenRecovered(address token, uint256 amount);
 
@@ -80,20 +81,15 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
   }
 
   function totalNum() public view returns (uint256) {
-    return
-      categorySupply["SSR"] +
-      categorySupply["SR"] +
-      categorySupply["R"] +
-      categorySupply["N"] +
-      categorySupply["SOUVENIR"]; // 100;
+    return totalClaimableNum() + categorySupply["SSR"];
   }
 
   function totalRareNum() public view returns (uint256) {
-    return
-      categorySupply["SSR"] +
-      categorySupply["SR"] +
-      categorySupply["R"] +
-      categorySupply["N"];
+    return categorySupply["SR"] + categorySupply["R"] + categorySupply["N"];
+  }
+
+  function totalClaimableNum() public view returns (uint256) {
+    return totalRareNum() + categorySupply["SOUVENIR"];
   }
 
   function claim(address user, bytes memory signature)
@@ -193,23 +189,22 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
 
     if (rareleft > 0) {
       uint256 id = _random(prefix, 1, rareleft);
-      uint256 pivot0 = categorySupply["SSR"];
-      uint256 pivot1 = categorySupply["SSR"] + categorySupply["SR"];
-      uint256 pivot2 = pivot1 + categorySupply["R"];
-      uint256 pivot3 = pivot2 + categorySupply["N"];
+      // uint256 pivot0 = categorySupply["SSR"];
+      // uint256 pivot1 = categorySupply["SSR"] + categorySupply["SR"];
+      uint256 pivot0 = categorySupply["SR"];
+      uint256 pivot1 = pivot0 + categorySupply["R"];
+      uint256 pivot2 = pivot1 + categorySupply["N"];
       if (id >= 1 && id <= pivot0) {
-        category = "SSR";
-      } else if (id >= categorySupply["SSR"] + 1 && id <= pivot1) {
         category = "SR";
-      } else if (id >= pivot1 + 1 && id <= pivot2) {
+      } else if (id >= pivot0 + 1 && id <= pivot1) {
         category = "R";
-      } else if (id >= pivot2 + 1 && id <= pivot3) {
+      } else if (id >= pivot1 + 1 && id <= pivot2) {
         category = "N";
       } else {
         require(false, "OrangeLauncher::_getCategory::something wrong");
       }
     } else {
-      uint256 left = totalNum();
+      uint256 left = totalClaimableNum();
       require(left > 0, "OrangeLauncher::_getCategory::no NFT");
       category = "SOUVENIR";
     }
@@ -288,9 +283,14 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     internal
     returns (uint256 id)
   {
+    require(
+      categorySupply[category] > 0,
+      "OrangeLauncher::_mint::no avaliable nft"
+    );
     uint256 ctdId = avatarNFT.categoryIdByRarity(category);
     id = avatarNFT.mint(to, ctdId);
     categorySupply[category] = categorySupply[category] - 1;
+    emit Minted(to, id);
   }
 
   function mint(address to, string memory category)
@@ -298,7 +298,7 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     onlyGovernance
     returns (uint256 id)
   {
-    _mint(to, category);
+    return _mint(to, category);
   }
 
   /**

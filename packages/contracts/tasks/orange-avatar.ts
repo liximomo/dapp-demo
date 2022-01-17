@@ -8,7 +8,7 @@ task("OrangeAvatar:list-nft")
     const avatar = await getDeployed<OrangeAvatar__factory>(
       hre,
       "OrangeAvatar",
-      "0xD50c6b1f82fA418066e50CF2a715a5A29add674B"
+      "0x2A2fD0B99bB970A9846308d8F0F6119b5b3b2C99"
     );
 
     const totalNFTNum = await avatar.balanceOf(address);

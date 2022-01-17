@@ -7,12 +7,14 @@ import {
 import { deploy, getDeployed } from "../libs/deploy";
 import { getSignature } from "../libs/sign";
 
+const LauncherAddress = "0xA6B7a0F2134CcC467751016Fc3B1c7d62E935219";
+
 task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
   // config
   const ssrNum = 3;
-  const srNum = 2;
-  const rNum = 3;
-  const nNum = 172;
+  const srNum = 5;
+  const rNum = 10;
+  const nNum = 152;
   const souvenirNum = 500;
 
   const token = await deploy<ERC20Mock__factory>(hre, "ERC20Mock", [
@@ -46,7 +48,7 @@ task("OrangeLauncher:mint")
     const launcher = await getDeployed<OrangeLauncher__factory>(
       hre,
       "OrangeLauncher",
-      "0x36beE7B36e4914E6E0BaB17164842e1dcbfa1AdC"
+      LauncherAddress
     );
 
     let tx;
@@ -68,7 +70,7 @@ task("OrangeLauncher:claim")
     const launcher = await getDeployed<OrangeLauncher__factory>(
       hre,
       "OrangeLauncher",
-      "0x36beE7B36e4914E6E0BaB17164842e1dcbfa1AdC"
+      LauncherAddress
     );
 
     const privateKey = Buffer.from(

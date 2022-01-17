@@ -26,8 +26,9 @@ const srNum = 2;
 const rNum = 3;
 const nNum = 4;
 const souvenirNum = 5;
-const totalRareNum = ssrNum + srNum + rNum + nNum;
-const totalNum = totalRareNum + souvenirNum;
+const totalRareNum = srNum + rNum + nNum;
+const totalClaimableNum = totalRareNum + souvenirNum;
+const totalNum = totalClaimableNum + ssrNum;
 
 describe("ChefVender", function () {
   let alice: SignerWithAddress;
@@ -86,7 +87,8 @@ describe("ChefVender", function () {
     it("should work", async function () {
       const signature = getSignature(privateKey, alice.address);
       expect(await avatar.balanceOf(alice.address)).to.eq(0);
-      await launcher.claim(alice.address, signature); 
+      const aLauncher = launcher.connect(alice);
+      await aLauncher.claim(alice.address, signature);
       expect(await avatar.balanceOf(alice.address)).to.eq(1);
     });
 
@@ -100,41 +102,7 @@ describe("ChefVender", function () {
       );
     });
 
-    it("should distribute nft random", async function () {
-      const signers = await ethers.getSigners();
-      for (let index = 0; index < totalNum; index++) {
-        const signature = getSignature(privateKey, signers[index].address);
-        await launcher.claim(signers[index].address, signature);
-      }
-      const count = {
-        SSR: 0,
-        SR: 0,
-        R: 0,
-        N: 0,
-        SOUVENIR: 0
-      };
-
-      for (let index = 0; index < totalNum; index++) {
-        const tokenId = await avatar.tokenOfOwnerByIndex(
-          signers[index].address,
-          0
-        );
-        const ctg = await avatar.categoryName(tokenId);
-        count[ctg]++;
-      }
-
-      const signature = getSignature(privateKey, signers[totalNum].address);
-      await expect(
-        launcher.claim(signers[totalNum].address, signature)
-      ).to.be.revertedWith("no NFT");
-      expect(count.SSR).to.eq(ssrNum);
-      expect(count.SR).to.eq(srNum);
-      expect(count.R).to.eq(rNum);
-      expect(count.N).to.eq(nNum);
-      expect(count.SOUVENIR).to.eq(souvenirNum);
-    });
-
-    it("should distribute rare nft first", async function () {
+    it("should distribute nft as expected", async function () {
       const count = {
         SSR: 0,
         SR: 0,
@@ -157,17 +125,18 @@ describe("ChefVender", function () {
         count[ctg]++;
       }
 
-      expect(count.SSR).to.eq(ssrNum);
+      // 1. claim sr, r, n first
+      expect(count.SSR).to.eq(0);
       expect(count.SR).to.eq(srNum);
       expect(count.R).to.eq(rNum);
       expect(count.N).to.eq(nNum);
       expect(count.SOUVENIR).to.eq(0);
 
-      for (let index = totalRareNum; index < totalNum; index++) {
+      for (let index = totalRareNum; index < totalClaimableNum; index++) {
         const signature = getSignature(privateKey, signers[index].address);
         await launcher.claim(signers[index].address, signature);
       }
-      for (let index = totalRareNum; index < totalNum; index++) {
+      for (let index = totalRareNum; index < totalClaimableNum; index++) {
         const tokenId = await avatar.tokenOfOwnerByIndex(
           signers[index].address,
           0
@@ -175,7 +144,26 @@ describe("ChefVender", function () {
         const ctg = await avatar.categoryName(tokenId);
         count[ctg]++;
       }
+      // 2. then claim souvenir
       expect(count.SOUVENIR).to.eq(souvenirNum);
+
+      // 3, can't claim now
+      await expect(
+        launcher.claim(
+          signers[totalNum].address,
+          getSignature(privateKey, signers[totalNum].address)
+        )
+      ).to.be.revertedWith("no NFT");
+
+      // 4. mint ssr
+      for (let index = 0; index < ssrNum; index++) {
+        await launcher.mint(alice.address, "SSR");
+      }
+
+      // 5. can't mint more
+      await expect(launcher.mint(alice.address, "SSR")).to.be.revertedWith(
+        "no avaliable nft"
+      );
     });
   });
 
