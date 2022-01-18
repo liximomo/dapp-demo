@@ -35,6 +35,8 @@ task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
   );
   await avatar.setMinter(launcher.address);
   console.log("set mint to launcer done");
+  await launcher.prepareRewards();
+  console.log("prepare rewards");
   await token.transfer(launcher.address, hre.ethers.utils.parseEther("3000"));
   console.log("send fund to launcer done");
   await launcher.startDraw();

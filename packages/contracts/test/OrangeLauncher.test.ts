@@ -84,7 +84,19 @@ describe("ChefVender", function () {
       );
     });
 
+    it("should revert before calling prepareRewards", async function () {
+      const signature = getSignature(privateKey, alice.address);
+      expect(await avatar.balanceOf(alice.address)).to.eq(0);
+      const aLauncher = launcher.connect(alice);
+      await expect(
+        aLauncher.claim(alice.address, signature)
+      ).to.be.revertedWith(
+        "OrangeLauncher::claim::SSR should not be claimable"
+      );
+    });
+
     it("should work", async function () {
+      await launcher.prepareRewards();
       const signature = getSignature(privateKey, alice.address);
       expect(await avatar.balanceOf(alice.address)).to.eq(0);
       const aLauncher = launcher.connect(alice);
@@ -93,6 +105,7 @@ describe("ChefVender", function () {
     });
 
     it("should only allow claim once", async function () {
+      await launcher.prepareRewards();
       const signature = getSignature(privateKey, alice.address);
       expect(await avatar.balanceOf(alice.address)).to.eq(0);
       await launcher.claim(alice.address, signature);
@@ -111,6 +124,7 @@ describe("ChefVender", function () {
         SOUVENIR: 0
       };
 
+      await launcher.prepareRewards();
       const signers = await ethers.getSigners();
       for (let index = 0; index < totalRareNum; index++) {
         const signature = getSignature(privateKey, signers[index].address);
@@ -155,14 +169,16 @@ describe("ChefVender", function () {
         )
       ).to.be.revertedWith("no NFT");
 
-      // 4. mint ssr
+      // 4. reward ssr
+      expect(await avatar.balanceOf(launcher.address)).to.eq(ssrNum);
       for (let index = 0; index < ssrNum; index++) {
-        await launcher.mint(alice.address, "SSR");
+        await launcher.reward(alice.address, index);
       }
+      expect(await avatar.balanceOf(launcher.address)).to.eq(0);
 
-      // 5. can't mint more
-      await expect(launcher.mint(alice.address, "SSR")).to.be.revertedWith(
-        "no avaliable nft"
+      // 5. no more reward
+      await expect(launcher.reward(alice.address, ssrNum)).to.be.revertedWith(
+        "invalid nft id"
       );
     });
   });
@@ -175,9 +191,9 @@ describe("ChefVender", function () {
     it("should revert", async function () {
       const aliceLauncher = launcher.connect(alice);
       await launcher.startDraw();
-      const signature = getSignature(privateKey, bob.address);
-      await launcher.claim(bob.address, signature);
-      await expect(aliceLauncher.draw(0)).to.be.revertedWith("unauthorized");
+      await launcher.mint(bob.address, "SR");
+      const id = await avatar.tokenOfOwnerByIndex(bob.address, 0);
+      await expect(aliceLauncher.draw(id)).to.be.revertedWith("unauthorized");
     });
 
     it("should revert", async function () {

@@ -7,12 +7,18 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./OrangeAvatar.sol";
 import "./ECDSA.sol";
 import "hardhat/console.sol";
 
-contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
+contract OrangeLauncher is
+  AccessControlEnumerable,
+  Pausable,
+  ReentrancyGuard,
+  IERC721Receiver
+{
   using SafeERC20 for ERC20;
   using Strings for uint256;
 
@@ -110,6 +116,10 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
       claimRecords[user] == false,
       "OrangeLauncher::claim::can't claim repeatedly"
     );
+    require(
+      categorySupply["SSR"] == 0,
+      "OrangeLauncher::claim::SSR should not be claimable"
+    );
 
     claimRecords[user] = true;
     uint256 id = _mint(user, _getCategory(string(signature)));
@@ -189,16 +199,17 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
 
     if (rareleft > 0) {
       uint256 id = _random(prefix, 1, rareleft);
-      // uint256 pivot0 = categorySupply["SSR"];
-      // uint256 pivot1 = categorySupply["SSR"] + categorySupply["SR"];
-      uint256 pivot0 = categorySupply["SR"];
-      uint256 pivot1 = pivot0 + categorySupply["R"];
-      uint256 pivot2 = pivot1 + categorySupply["N"];
+      uint256 pivot0 = categorySupply["SSR"];
+      uint256 pivot1 = pivot0 + categorySupply["SR"];
+      uint256 pivot2 = pivot1 + categorySupply["R"];
+      uint256 pivot3 = pivot2 + categorySupply["N"];
       if (id >= 1 && id <= pivot0) {
-        category = "SR";
+        category = "SSR";
       } else if (id >= pivot0 + 1 && id <= pivot1) {
-        category = "R";
+        category = "SR";
       } else if (id >= pivot1 + 1 && id <= pivot2) {
+        category = "R";
+      } else if (id >= pivot2 + 1 && id <= pivot3) {
         category = "N";
       } else {
         require(false, "OrangeLauncher::_getCategory::something wrong");
@@ -222,20 +233,19 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
       "OrangeLauncher::_random::min must be less than or equal to max"
     );
 
-    uint256 rand =
-      uint256(
-        keccak256(
-          abi.encodePacked(
-            string(
-              abi.encodePacked(
-                seed,
-                blockhash(block.number - 1),
-                _addressToAsciiString(_msgSender())
-              )
+    uint256 rand = uint256(
+      keccak256(
+        abi.encodePacked(
+          string(
+            abi.encodePacked(
+              seed,
+              blockhash(block.number - 1),
+              _addressToAsciiString(_msgSender())
             )
           )
         )
-      );
+      )
+    );
 
     // num in [0, max-min] + [min,min] = [min, max]
     uint256 num = (rand % (max - min + 1)) + min;
@@ -293,12 +303,36 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
     emit Minted(to, id);
   }
 
+  function onERC721Received(
+    address, /*operator*/
+    address, /*from*/
+    uint256, /*tokenId*/
+    bytes calldata /*data*/
+  ) external override returns (bytes4) {
+    return IERC721Receiver.onERC721Received.selector;
+  }
+
   function mint(address to, string memory category)
     public
     onlyGovernance
     returns (uint256 id)
   {
     return _mint(to, category);
+  }
+
+  function prepareRewards() public onlyGovernance {
+    for (uint256 index = 0; index < categorySupply["SSR"]; index++) {
+      _mint(address(this), "SSR");
+    }
+  }
+
+  /// @dev send ssr nft to a account as reward
+  function reward(address to, uint256 id) public onlyGovernance {
+    require(
+      avatarNFT.ownerOf(id) == address(this),
+      "OrangeLauncher::reward::invalid nft id"
+    );
+    return avatarNFT.safeTransferFrom(address(this), to, id);
   }
 
   /**
