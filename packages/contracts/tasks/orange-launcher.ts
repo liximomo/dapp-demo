@@ -90,3 +90,40 @@ task("OrangeLauncher:claim")
       console.error(error);
     }
   });
+
+task("OrangeLauncher:setDrawDistributions").setAction(
+  async ({ user, type }, hre) => {
+    const launcher = await getDeployed<OrangeLauncher__factory>(
+      hre,
+      "OrangeLauncher",
+      LauncherAddress
+    );
+    let tx;
+    try {
+      tx = await launcher.setDrawDistributions(
+        [60, 45, 30],
+        [
+          [10, 2],
+          [11, 9],
+          [12, 20],
+          [13, 18],
+          [14, 6],
+          [15, 18],
+          [16, 12],
+          [17, 15],
+          [18, 16],
+          [19, 12],
+          [20, 1]
+        ],
+        {
+          gasLimit: "1000000"
+        }
+      );
+      await tx.wait();
+      console.log(`setDrawDistributions success. (tx: ${tx.hash})`);
+    } catch (error) {
+      console.error(`setDrawDistributions fail. (tx: ${tx?.hash})`);
+      console.error(error);
+    }
+  }
+);

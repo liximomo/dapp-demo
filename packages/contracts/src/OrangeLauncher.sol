@@ -32,7 +32,7 @@ contract OrangeLauncher is AccessControlEnumerable, Pausable, ReentrancyGuard {
   mapping(address => bool) public claimRecords;
   mapping(uint256 => DrawInfo) public drawRecords;
   mapping(string => uint256) public categorySupply;
-  uint256[3] private _drawDistributionsFixed = [0, 0, 0];
+  uint256[3] private _drawDistributionsFixed = [60, 45, 30];
   uint256[2][] private _drawDistributions = [
     [10, 2],
     [11, 9],
