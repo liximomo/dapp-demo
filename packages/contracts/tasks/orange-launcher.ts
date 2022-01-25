@@ -15,7 +15,7 @@ task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
   const srNum = 5;
   const rNum = 10;
   const nNum = 152;
-  const souvenirNum = 500;
+  const souvenirNum = 5000;
 
   const token = await deploy<ERC20Mock__factory>(hre, "ERC20Mock", [
     "Test Reward BUSD Token",

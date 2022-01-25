@@ -30,10 +30,11 @@ const totalRareNum = srNum + rNum + nNum;
 const totalClaimableNum = totalRareNum + souvenirNum;
 const totalNum = totalClaimableNum + ssrNum;
 
-describe("ChefVender", function () {
+describe("OrangeLauncher", function () {
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
   let carol: SignerWithAddress;
+  let david: SignerWithAddress;
   let deployer: SignerWithAddress;
 
   let busd: ERC20Mock;
@@ -41,7 +42,7 @@ describe("ChefVender", function () {
   let launcher: OrangeLauncher;
 
   before(async () => {
-    [alice, bob, carol, deployer] = await ethers.getSigners();
+    [alice, bob, carol, david, deployer] = await ethers.getSigners();
   });
 
   beforeEach(async () => {
@@ -68,6 +69,32 @@ describe("ChefVender", function () {
       [ssrNum, srNum, rNum, nNum, souvenirNum]
     );
     await avatar.setMinter(launcher.address);
+  });
+
+  describe("mint", () => {
+    it("should consume supply", async function () {
+      const before = await launcher.categorySupply("SSR");
+      await expect(launcher.mint(alice.address, "SSR"))
+        .to.emit(launcher, "Minted")
+        .withArgs(alice.address, 0);
+      const after = await launcher.categorySupply("SSR");
+      expect(before.sub(after)).to.eq(1);
+    });
+
+    it("should revert: unknown category", async function () {
+      await expect(
+        launcher.mint(alice.address, "UNKNOWN_CATEGORY")
+      ).to.be.revertedWith("no avaliable nft");
+    });
+
+    it("should revert: no supply", async function () {
+      for (let index = 0; index < ssrNum; index++) {
+        await launcher.mint(alice.address, "SSR");
+      }
+      await expect(launcher.mint(alice.address, "SSR")).to.be.revertedWith(
+        "no avaliable nft"
+      );
+    });
   });
 
   describe("claim", () => {
@@ -100,7 +127,9 @@ describe("ChefVender", function () {
       const signature = getSignature(privateKey, alice.address);
       expect(await avatar.balanceOf(alice.address)).to.eq(0);
       const aLauncher = launcher.connect(alice);
-      await aLauncher.claim(alice.address, signature);
+      await expect(aLauncher.claim(alice.address, signature))
+        .to.emit(launcher, "Claimed")
+        .withArgs(alice.address, ssrNum);
       expect(await avatar.balanceOf(alice.address)).to.eq(1);
     });
 
@@ -115,7 +144,7 @@ describe("ChefVender", function () {
       );
     });
 
-    it("should distribute nft as expected", async function () {
+    it("should distribute nft as expected (real case)", async function () {
       const count = {
         SSR: 0,
         SR: 0,
@@ -172,7 +201,14 @@ describe("ChefVender", function () {
       // 4. reward ssr
       expect(await avatar.balanceOf(launcher.address)).to.eq(ssrNum);
       for (let index = 0; index < ssrNum; index++) {
-        await launcher.reward(alice.address, index);
+        const beforeBalance = await avatar.balanceOf(alice.address);
+        await expect(launcher.reward(alice.address, index))
+          .to.emit(launcher, "Rewarded")
+          .withArgs(alice.address, index);
+        const afterBalance = await avatar.balanceOf(alice.address);
+        expect(await avatar.ownerOf(index)).to.eq(alice.address);
+        expect(await avatar.categoryName(index)).to.eq("SSR");
+        expect(afterBalance.sub(beforeBalance)).to.eq(1);
       }
       expect(await avatar.balanceOf(launcher.address)).to.eq(0);
 
@@ -184,16 +220,20 @@ describe("ChefVender", function () {
   });
 
   describe("draw", () => {
-    it("should revert", async function () {
+    it("should revert: draw is not started", async function () {
       await expect(launcher.draw(0)).to.be.revertedWith("not avaliable");
     });
 
-    it("should revert", async function () {
+    it("should revert: no avaliable nft", async function () {
       const aliceLauncher = launcher.connect(alice);
+      const bobLauncher = launcher.connect(bob);
       await launcher.startDraw();
+      await launcher.mint(alice.address, "SR");
       await launcher.mint(bob.address, "SR");
-      const id = await avatar.tokenOfOwnerByIndex(bob.address, 0);
-      await expect(aliceLauncher.draw(id)).to.be.revertedWith("unauthorized");
+      const aid = await avatar.tokenOfOwnerByIndex(alice.address, 0);
+      const bid = await avatar.tokenOfOwnerByIndex(bob.address, 0);
+      await expect(aliceLauncher.draw(bid)).to.be.revertedWith("unauthorized");
+      await expect(bobLauncher.draw(aid)).to.be.revertedWith("unauthorized");
     });
 
     it("should revert", async function () {
@@ -206,19 +246,24 @@ describe("ChefVender", function () {
       );
     });
 
-    it("should work", async function () {
+    it("should draw once", async function () {
       const aliceLauncher = launcher.connect(alice);
       await launcher.startDraw();
       await launcher.mint(alice.address, "N");
+      await launcher.setDrawDistributions([0, 0, 0], [[10, 4]]);
       const tokenId = await avatar.tokenOfOwnerByIndex(alice.address, 0);
       await busd.transfer(launcher.address, parseEther("100"));
-      await aliceLauncher.draw(tokenId);
+      await expect(aliceLauncher.draw(tokenId))
+        .to.emit(launcher, "Drawed")
+        .withArgs(alice.address, busd.address, parseEther("10"));
       const balance = await busd.balanceOf(alice.address);
-      expect(balance).to.gte(parseEther("10"));
-      expect(balance).to.lte(parseEther("20"));
+      expect(balance).to.eq(parseEther("10"));
+      await expect(aliceLauncher.draw(tokenId)).to.be.revertedWith(
+        "can't draw repeatedly"
+      );
     });
 
-    it("should distribute award randomly", async function () {
+    it("[Noraml NFT] should distribute award randomly case 1", async function () {
       const aliceLauncher = launcher.connect(alice);
       await launcher.startDraw();
       await launcher.setDrawDistributions(
@@ -247,20 +292,174 @@ describe("ChefVender", function () {
       expect(
         drawReward.map(a => +ethers.utils.formatEther(a)).sort((a, b) => a - b)
       ).to.eql([10, 10, 20]);
-      expect(aliceLauncher.draw(3)).to.be.revertedWith(
+      await expect(aliceLauncher.draw(3)).to.be.revertedWith(
         "all rewards have been drawed"
       );
+    });
+
+    it("[Noraml NFT] should distribute award randomly case 2", async function () {
+      const aliceLauncher = launcher.connect(alice);
+      await launcher.startDraw();
+      await launcher.setDrawDistributions(
+        [0, 0, 0],
+        [
+          [10, 2],
+          [15, 1],
+          [20, 1]
+        ]
+      );
+      await launcher.mint(alice.address, "N");
+      await launcher.mint(alice.address, "N");
+      await launcher.mint(alice.address, "N");
+      await launcher.mint(alice.address, "N");
+      await busd.transfer(launcher.address, parseEther("100"));
+      const drawReward = [];
+      const initBalance = await busd.balanceOf(alice.address);
+      await aliceLauncher.draw(0);
+      const firstBalance = await busd.balanceOf(alice.address);
+      drawReward.push(firstBalance.sub(initBalance));
+      await aliceLauncher.draw(1);
+      const sencondBalance = await busd.balanceOf(alice.address);
+      drawReward.push(sencondBalance.sub(firstBalance));
+      await aliceLauncher.draw(2);
+      const thirdBalance = await busd.balanceOf(alice.address);
+      drawReward.push(thirdBalance.sub(sencondBalance));
+      await aliceLauncher.draw(3);
+      const forthBalance = await busd.balanceOf(alice.address);
+      drawReward.push(forthBalance.sub(thirdBalance));
+      expect(
+        drawReward.map(a => +ethers.utils.formatEther(a)).sort((a, b) => a - b)
+      ).to.eql([10, 10, 15, 20]);
+    });
+
+    it("[Rare NFT] should distribute award randomly", async function () {
+      const aliceLauncher = launcher.connect(alice);
+      const bobLauncher = launcher.connect(bob);
+      await launcher.startDraw();
+      await launcher.setDrawDistributions([60, 30, 10], []);
+      await launcher.mint(alice.address, "SSR");
+      await launcher.mint(alice.address, "SR");
+      await launcher.mint(alice.address, "R");
+      await busd.transfer(launcher.address, parseEther("100"));
+
+      await expect(() => aliceLauncher.draw(0)).to.changeTokenBalance(
+        busd,
+        alice,
+        parseEther("60")
+      );
+      await expect(() => aliceLauncher.draw(1)).to.changeTokenBalance(
+        busd,
+        alice,
+        parseEther("30")
+      );
+      await expect(() => aliceLauncher.draw(2)).to.changeTokenBalance(
+        busd,
+        alice,
+        parseEther("10")
+      );
+
+      await launcher.mint(bob.address, "SR");
+      await launcher.mint(bob.address, "R");
+      await expect(bobLauncher.draw(3)).to.be.revertedWith(
+        "insufficient_funds"
+      );
+      await busd.transfer(launcher.address, parseEther("40"));
+      await expect(() => bobLauncher.draw(3)).to.changeTokenBalance(
+        busd,
+        bob,
+        parseEther("30")
+      );
+      await expect(() => bobLauncher.draw(4)).to.changeTokenBalance(
+        busd,
+        bob,
+        parseEther("10")
+      );
+    });
+
+    it("[SOUVENIR NFT] should not able to draw", async function () {
+      const aliceLauncher = launcher.connect(alice);
+      await launcher.startDraw();
+      await launcher.mint(alice.address, "SOUVENIR");
+      await busd.transfer(launcher.address, parseEther("100"));
+      await expect(aliceLauncher.draw(0)).to.be.revertedWith(
+        "amouont must be greater than 0"
+      );
+    });
+
+    it("should distribute award properly (real case)", async function () {
+      const aliceLauncher = launcher.connect(alice);
+      const bobLauncher = launcher.connect(bob);
+      const carolLauncher = launcher.connect(carol);
+      const davidLauncher = launcher.connect(david);
+      await launcher.startDraw();
+      await launcher.setDrawDistributions(
+        [60, 45, 30],
+        [
+          [10, 2],
+          [15, 1],
+          [20, 1]
+        ]
+      );
+      // 60*1 + 45*2 + 30*3 + 10*2 + 15*1 + 20*1
+      await busd.transfer(launcher.address, parseEther("295"));
+      for (let i = 0; i < ssrNum; i++) {
+        await launcher.mint(alice.address, "SSR");
+      }
+      for (let i = 0; i < srNum; i++) {
+        await launcher.mint(bob.address, "SR");
+      }
+      for (let i = 0; i < rNum; i++) {
+        await launcher.mint(carol.address, "R");
+      }
+      for (let i = 0; i < nNum; i++) {
+        await launcher.mint(david.address, "N");
+      }
+      await expect(launcher.mint(alice.address, "SSR")).be.revertedWith(
+        "no avaliable nft"
+      );
+      await expect(launcher.mint(alice.address, "SR")).be.revertedWith(
+        "no avaliable nft"
+      );
+      await expect(launcher.mint(alice.address, "R")).be.revertedWith(
+        "no avaliable nft"
+      );
+      await expect(launcher.mint(alice.address, "N")).be.revertedWith(
+        "no avaliable nft"
+      );
+
+      for (let i = 0; i < ssrNum; i++) {
+        await aliceLauncher.draw(i);
+      }
+      expect(await busd.balanceOf(launcher.address)).to.eq(parseEther("235"));
+      expect(await busd.balanceOf(alice.address)).to.eq(parseEther("60"));
+      for (let i = 0; i < srNum; i++) {
+        await bobLauncher.draw(ssrNum + i);
+      }
+      expect(await busd.balanceOf(launcher.address)).to.eq(parseEther("145"));
+      expect(await busd.balanceOf(bob.address)).to.eq(parseEther("90"));
+      for (let i = 0; i < rNum; i++) {
+        await carolLauncher.draw(ssrNum + srNum + i);
+      }
+      expect(await busd.balanceOf(launcher.address)).to.eq(parseEther("55"));
+      expect(await busd.balanceOf(carol.address)).to.eq(parseEther("90"));
+      for (let i = 0; i < nNum; i++) {
+        await davidLauncher.draw(ssrNum + srNum + rNum + i);
+      }
+      expect(await busd.balanceOf(launcher.address)).to.eq(parseEther("0"));
+      expect(await busd.balanceOf(david.address)).to.eq(parseEther("55"));
     });
   });
 
   describe("governance", () => {
-    it("should revert", () => {
+    it("should revert", async () => {
       const aliceLauncher = launcher.connect(alice);
-      expect(
+      await expect(
         aliceLauncher.setTruthHolder(ethers.constants.AddressZero)
       ).to.be.revertedWith("only GOVERNANCE role");
-      expect(aliceLauncher.pause()).to.be.revertedWith("only GOVERNANCE role");
-      expect(aliceLauncher.startDraw()).to.be.revertedWith(
+      await expect(aliceLauncher.pause()).to.be.revertedWith(
+        "only GOVERNANCE role"
+      );
+      await expect(aliceLauncher.startDraw()).to.be.revertedWith(
         "only GOVERNANCE role"
       );
     });

@@ -71,9 +71,8 @@ contract OrangeAvatar is Ownable, ERC721Enumerable, ERC721Pausable {
     );
 
     string memory baseURI = _baseURI();
-    string memory tokenURI = string(
-      abi.encodePacked(tokenId.toString(), ".json")
-    );
+    string memory tokenURI =
+      string(abi.encodePacked(tokenId.toString(), ".json"));
     return
       bytes(baseURI).length > 0
         ? string(abi.encodePacked(baseURI, tokenURI))
@@ -97,7 +96,7 @@ contract OrangeAvatar is Ownable, ERC721Enumerable, ERC721Pausable {
     returns (uint256 id)
   {
     require(
-      _categoryIds.current() >= categoryId,
+      0 < categoryId && categoryId <= _categoryIds.current(),
       "OrangeAvatar::mint::invalid categoryId"
     );
 

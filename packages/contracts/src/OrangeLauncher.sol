@@ -55,6 +55,7 @@ contract OrangeLauncher is
 
   event Claimed(address indexed user, uint256 indexed tokenId);
   event Minted(address indexed user, uint256 indexed tokenId);
+  event Rewarded(address indexed user, uint256 indexed tokenId);
   event Drawed(address indexed user, address indexed token, uint256 amount);
   event TokenRecovered(address token, uint256 amount);
 
@@ -138,10 +139,7 @@ contract OrangeLauncher is
     );
 
     DrawInfo storage drawinfo = drawRecords[id];
-    require(
-      drawinfo.amouont == 0,
-      "OrangeLauncher::draw::can't draw repeatedly"
-    );
+    require(drawinfo.time == 0, "OrangeLauncher::draw::can't draw repeatedly");
 
     uint256 amouont = _drawReward(id);
     amouont = amouont * 10**rewardToken.decimals();
@@ -162,10 +160,6 @@ contract OrangeLauncher is
   }
 
   function _drawReward(uint256 id) internal returns (uint256) {
-    require(
-      _drawDistributions.length > 0,
-      "OrangeLauncher::_drawReward::all rewards have been drawed"
-    );
     uint256 value;
     string memory ctg = avatarNFT.categoryName(id);
     if (keccak256(bytes(ctg)) == keccak256("SSR")) {
@@ -175,6 +169,10 @@ contract OrangeLauncher is
     } else if (keccak256(bytes(ctg)) == keccak256("R")) {
       value = _drawDistributionsFixed[2];
     } else if (keccak256(bytes(ctg)) == keccak256("N")) {
+      require(
+        _drawDistributions.length > 0,
+        "OrangeLauncher::_drawReward::all rewards have been drawed"
+      );
       uint256 index = _random(id.toString(), 0, _drawDistributions.length - 1);
       uint256[2] storage info = _drawDistributions[index];
       value = info[0];
@@ -233,19 +231,20 @@ contract OrangeLauncher is
       "OrangeLauncher::_random::min must be less than or equal to max"
     );
 
-    uint256 rand = uint256(
-      keccak256(
-        abi.encodePacked(
-          string(
-            abi.encodePacked(
-              seed,
-              blockhash(block.number - 1),
-              _addressToAsciiString(_msgSender())
+    uint256 rand =
+      uint256(
+        keccak256(
+          abi.encodePacked(
+            string(
+              abi.encodePacked(
+                seed,
+                blockhash(block.number - 1),
+                _addressToAsciiString(_msgSender())
+              )
             )
           )
         )
-      )
-    );
+      );
 
     // num in [0, max-min] + [min,min] = [min, max]
     uint256 num = (rand % (max - min + 1)) + min;
@@ -327,12 +326,13 @@ contract OrangeLauncher is
   }
 
   /// @dev send ssr nft to a account as reward
-  function reward(address to, uint256 id) public onlyGovernance {
+  function reward(address to, uint256 tokenId) public onlyGovernance {
     require(
-      avatarNFT.ownerOf(id) == address(this),
+      avatarNFT.ownerOf(tokenId) == address(this),
       "OrangeLauncher::reward::invalid nft id"
     );
-    return avatarNFT.safeTransferFrom(address(this), to, id);
+    avatarNFT.safeTransferFrom(address(this), to, tokenId);
+    emit Rewarded(to, tokenId);
   }
 
   /**
