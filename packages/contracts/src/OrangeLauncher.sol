@@ -24,6 +24,7 @@ contract OrangeLauncher is
 
   bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
   uint256 public constant REWARD_DENOMINATOR = 100;
+  uint256 public rarityRatio = 0; // num%
 
   struct DrawInfo {
     uint256 amouont;
@@ -39,19 +40,19 @@ contract OrangeLauncher is
   mapping(address => bool) public claimRecords;
   mapping(uint256 => DrawInfo) public drawRecords;
   mapping(string => uint256) public categorySupply;
-  uint256[3] private _drawDistributionsFixed = [60, 45, 30];
+  uint256[3] private _drawDistributionsFixed = [6000, 4500, 3000];
   uint256[2][] private _drawDistributions = [
-    [10, 2],
-    [11, 9],
-    [12, 20],
-    [13, 18],
-    [14, 6],
-    [15, 18],
-    [16, 12],
-    [17, 15],
-    [18, 16],
-    [19, 12],
-    [20, 1]
+    [1000, 2],
+    [1100, 9],
+    [1200, 20],
+    [1300, 18],
+    [1400, 6],
+    [1500, 18],
+    [1600, 12],
+    [1700, 15],
+    [1800, 16],
+    [1900, 12],
+    [2000, 1]
   ];
 
   event Claimed(address indexed user, uint256 indexed tokenId);
@@ -73,11 +74,13 @@ contract OrangeLauncher is
     address _avatarNFT,
     address _rewardToken,
     address _truthHolder,
-    uint256[5] memory _supply
+    uint256 _rarityRatio,
+    uint256[4] memory _supply
   ) {
     avatarNFT = OrangeAvatar(_avatarNFT);
     rewardToken = ERC20(_rewardToken);
     truthHolder = _truthHolder;
+    rarityRatio = _rarityRatio;
 
     _setupRole(GOVERNANCE_ROLE, _msgSender());
 
@@ -85,19 +88,14 @@ contract OrangeLauncher is
     categorySupply["SR"] = _supply[1]; // 10;
     categorySupply["R"] = _supply[2]; // 20;
     categorySupply["N"] = _supply[3]; // 100;
-    categorySupply["SOUVENIR"] = _supply[4]; // 100;
-  }
-
-  function totalNum() public view returns (uint256) {
-    return totalClaimableNum() + categorySupply["SSR"];
   }
 
   function totalRareNum() public view returns (uint256) {
-    return categorySupply["SR"] + categorySupply["R"] + categorySupply["N"];
-  }
-
-  function totalClaimableNum() public view returns (uint256) {
-    return totalRareNum() + categorySupply["SOUVENIR"];
+    return
+      categorySupply["SSR"] +
+      categorySupply["SR"] +
+      categorySupply["R"] +
+      categorySupply["N"];
   }
 
   function claim(address user, bytes memory signature)
@@ -143,7 +141,7 @@ contract OrangeLauncher is
     require(drawinfo.time == 0, "OrangeLauncher::draw::can't draw repeatedly");
 
     uint256 amouont = _drawReward(id);
-    amouont = amouont * 10**rewardToken.decimals() / REWARD_DENOMINATOR;
+    amouont = (amouont * 10**rewardToken.decimals()) / REWARD_DENOMINATOR;
     require(
       amouont > 0,
       "OrangeLauncher::draw::amouont must be greater than 0"
@@ -195,8 +193,10 @@ contract OrangeLauncher is
   {
     uint256 rareleft = totalRareNum();
     string memory category;
+    uint256 rand = _random(string(abi.encodePacked(prefix, "rare")), 1, 100);
+    bool rare = rand <= rarityRatio;
 
-    if (rareleft > 0) {
+    if (rare && rareleft > 0) {
       uint256 id = _random(prefix, 1, rareleft);
       uint256 pivot0 = categorySupply["SSR"];
       uint256 pivot1 = pivot0 + categorySupply["SR"];
@@ -214,8 +214,6 @@ contract OrangeLauncher is
         require(false, "OrangeLauncher::_getCategory::something wrong");
       }
     } else {
-      uint256 left = totalClaimableNum();
-      require(left > 0, "OrangeLauncher::_getCategory::no NFT");
       category = "SOUVENIR";
     }
 
@@ -293,13 +291,16 @@ contract OrangeLauncher is
     internal
     returns (uint256 id)
   {
-    require(
-      categorySupply[category] > 0,
-      "OrangeLauncher::_mint::no avaliable nft"
-    );
+    if (keccak256(bytes(category)) != keccak256("SOUVENIR")) {
+      require(
+        categorySupply[category] > 0,
+        "OrangeLauncher::_mint::no avaliable nft"
+      );
+      categorySupply[category] = categorySupply[category] - 1;
+    }
+
     uint256 ctdId = avatarNFT.categoryIdByRarity(category);
     id = avatarNFT.mint(to, ctdId);
-    categorySupply[category] = categorySupply[category] - 1;
     emit Minted(to, id);
   }
 
@@ -362,6 +363,10 @@ contract OrangeLauncher is
 
   function stopDraw() external onlyGovernance {
     drawEnabled = false;
+  }
+
+  function setRarityRatio(uint256 _rarityRatio) external onlyGovernance {
+    rarityRatio = _rarityRatio;
   }
 
   function setDrawDistributions(

@@ -1,4 +1,5 @@
 import { ethers } from "hardhat";
+import ethWallet from "ethereumjs-wallet";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import chai from "chai";
 import {
@@ -25,10 +26,8 @@ const ssrNum = 1;
 const srNum = 2;
 const rNum = 3;
 const nNum = 4;
-const souvenirNum = 5;
-const totalRareNum = srNum + rNum + nNum;
-const totalClaimableNum = totalRareNum + souvenirNum;
-const totalNum = totalClaimableNum + ssrNum;
+const rarityRatio = 11;
+const totalClaimableRareNum = srNum + rNum + nNum;
 
 describe("OrangeLauncher", function () {
   let alice: SignerWithAddress;
@@ -66,7 +65,8 @@ describe("OrangeLauncher", function () {
       avatar.address,
       busd.address,
       truthHolder,
-      [ssrNum, srNum, rNum, nNum, souvenirNum]
+      rarityRatio,
+      [ssrNum, srNum, rNum, nNum]
     );
     await avatar.setMinter(launcher.address);
   });
@@ -154,51 +154,47 @@ describe("OrangeLauncher", function () {
       };
 
       await launcher.prepareRewards();
-      const signers = await ethers.getSigners();
-      for (let index = 0; index < totalRareNum; index++) {
-        const signature = getSignature(privateKey, signers[index].address);
-        await launcher.claim(signers[index].address, signature);
+      const rarity = await launcher.rarityRatio();
+      const total = Math.ceil(
+        (1 / rarity.toNumber()) * totalClaimableRareNum * 2 * 100
+      );
+      const addressList = [];
+      for (let index = 0; index < total; index++) {
+        const address = ethWallet.generate().getAddressString();
+        addressList.push(address);
+        const signature = getSignature(privateKey, address);
+        await launcher.claim(address, signature);
       }
-      for (let index = 0; index < totalRareNum; index++) {
-        const tokenId = await avatar.tokenOfOwnerByIndex(
-          signers[index].address,
-          0
-        );
+      for (let index = 0; index < total; index++) {
+        const tokenId = await avatar.tokenOfOwnerByIndex(addressList[index], 0);
         const ctg = await avatar.categoryName(tokenId);
         count[ctg]++;
       }
 
       // 1. claim sr, r, n first
       expect(count.SSR).to.eq(0);
-      expect(count.SR).to.eq(srNum);
-      expect(count.R).to.eq(rNum);
-      expect(count.N).to.eq(nNum);
-      expect(count.SOUVENIR).to.eq(0);
+      expect(count.SR).to.closeTo(srNum, 1);
+      expect(count.R).to.closeTo(rNum, 1);
+      expect(count.N).to.closeTo(nNum, 1);
+      expect(count.SOUVENIR).to.closeTo(total - totalClaimableRareNum, 1);
 
-      for (let index = totalRareNum; index < totalClaimableNum; index++) {
-        const signature = getSignature(privateKey, signers[index].address);
-        await launcher.claim(signers[index].address, signature);
+      addressList.length = 0;
+      for (let index = 0; index < 100; index++) {
+        const address = ethWallet.generate().getAddressString();
+        addressList.push(address);
+        const signature = getSignature(privateKey, address);
+        await launcher.claim(address, signature);
       }
-      for (let index = totalRareNum; index < totalClaimableNum; index++) {
-        const tokenId = await avatar.tokenOfOwnerByIndex(
-          signers[index].address,
-          0
-        );
+      count.SOUVENIR = 0;
+      for (let index = 0; index < 100; index++) {
+        const tokenId = await avatar.tokenOfOwnerByIndex(addressList[index], 0);
         const ctg = await avatar.categoryName(tokenId);
         count[ctg]++;
       }
       // 2. then claim souvenir
-      expect(count.SOUVENIR).to.eq(souvenirNum);
+      expect(count.SOUVENIR).to.eq(100);
 
-      // 3, can't claim now
-      await expect(
-        launcher.claim(
-          signers[totalNum].address,
-          getSignature(privateKey, signers[totalNum].address)
-        )
-      ).to.be.revertedWith("no NFT");
-
-      // 4. reward ssr
+      // 3. reward ssr
       expect(await avatar.balanceOf(launcher.address)).to.eq(ssrNum);
       for (let index = 0; index < ssrNum; index++) {
         const beforeBalance = await avatar.balanceOf(alice.address);

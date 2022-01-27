@@ -7,7 +7,8 @@ import {
 import { deploy, getDeployed } from "../libs/deploy";
 import { getSignature } from "../libs/sign";
 
-const LauncherAddress = "0xA6B7a0F2134CcC467751016Fc3B1c7d62E935219";
+const AvatarAddress = "0xF2062f3D4E10258b43E292DA073445c5552A9df0";
+const LauncherAddress = "0xA2a032f5D0e419d7F01816309eFe001f4023c5d7";
 
 task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
   // config
@@ -15,7 +16,7 @@ task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
   const srNum = 5;
   const rNum = 10;
   const nNum = 152;
-  const souvenirNum = 5000;
+  const rarityRatio = 100;
 
   const token = await deploy<ERC20Mock__factory>(hre, "ERC20Mock", [
     "Test Reward BUSD Token",
@@ -30,7 +31,8 @@ task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
       avatar.address,
       token.address,
       "0xF9A2E4B92e3A7356c31862F963634172c12878A5",
-      [ssrNum, srNum, rNum, nNum, souvenirNum]
+      rarityRatio,
+      [ssrNum, srNum, rNum, nNum]
     ]
   );
   await avatar.setMinter(launcher.address);
@@ -45,11 +47,11 @@ task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
 
 task("OrangeLauncher:deploy").setAction(async (_, hre) => {
   // config
-  const ssrNum = 3;
-  const srNum = 5;
-  const rNum = 10;
-  const nNum = 152;
-  const souvenirNum = 9999;
+  const ssrNum = 1;
+  const srNum = 1;
+  const rNum = 2;
+  const nNum = 3;
+  const rarityRatio = 100;
   const BUSD = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56";
   const trustHolder = "0xec4f67f785938dB2076C07b834e800dFd7FFc713";
 
@@ -61,12 +63,17 @@ task("OrangeLauncher:deploy").setAction(async (_, hre) => {
       avatar.address,
       BUSD,
       trustHolder,
-      [ssrNum, srNum, rNum, nNum, souvenirNum]
+      rarityRatio,
+      [ssrNum, srNum, rNum, nNum]
     ]
   );
-  await avatar.setMinter(launcher.address);
+  await avatar.setMinter(launcher.address, {
+    gasLimit: "1000000"
+  });
   console.log("set mint to launcer done");
-  await launcher.prepareRewards();
+  await launcher.prepareRewards({
+    gasLimit: "1000000"
+  });
   console.log("prepare rewards");
   // await token.transfer(launcher.address, hre.ethers.utils.parseEther("3000"));
   // console.log("send fund to launcer done");
@@ -186,6 +193,9 @@ task("OrangeLauncher:startDraw").setAction(async ({}, hre) => {
   );
   let tx;
   try {
+    // tx = await launcher.prepareRewards({
+    //   gasLimit: "1000000"
+    // });
     tx = await launcher.startDraw({
       gasLimit: "1000000"
     });
