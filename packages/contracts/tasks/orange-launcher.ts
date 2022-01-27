@@ -43,6 +43,37 @@ task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
   console.log("enable draw done");
 });
 
+task("OrangeLauncher:deploy").setAction(async (_, hre) => {
+  // config
+  const ssrNum = 3;
+  const srNum = 5;
+  const rNum = 10;
+  const nNum = 152;
+  const souvenirNum = 9999;
+  const BUSD = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56";
+  const trustHolder = "0xec4f67f785938dB2076C07b834e800dFd7FFc713";
+
+  const avatar = await deploy<OrangeAvatar__factory>(hre, "OrangeAvatar", [""]);
+  const launcher = await deploy<OrangeLauncher__factory>(
+    hre,
+    "OrangeLauncher",
+    [
+      avatar.address,
+      BUSD,
+      trustHolder,
+      [ssrNum, srNum, rNum, nNum, souvenirNum]
+    ]
+  );
+  await avatar.setMinter(launcher.address);
+  console.log("set mint to launcer done");
+  await launcher.prepareRewards();
+  console.log("prepare rewards");
+  // await token.transfer(launcher.address, hre.ethers.utils.parseEther("3000"));
+  // console.log("send fund to launcer done");
+  // await launcher.startDraw();
+  // console.log("enable draw done");
+});
+
 task("OrangeLauncher:mint")
   .addParam("type")
   .addParam("to")
@@ -93,39 +124,118 @@ task("OrangeLauncher:claim")
     }
   });
 
-task("OrangeLauncher:setDrawDistributions").setAction(
-  async ({ user, type }, hre) => {
-    const launcher = await getDeployed<OrangeLauncher__factory>(
-      hre,
-      "OrangeLauncher",
-      LauncherAddress
+task("OrangeLauncher:setDrawDistributions").setAction(async ({}, hre) => {
+  const launcher = await getDeployed<OrangeLauncher__factory>(
+    hre,
+    "OrangeLauncher",
+    LauncherAddress
+  );
+  let tx;
+  try {
+    tx = await launcher.setDrawDistributions(
+      [60, 45, 30],
+      [
+        [10, 2],
+        [11, 9],
+        [12, 20],
+        [13, 18],
+        [14, 6],
+        [15, 18],
+        [16, 12],
+        [17, 15],
+        [18, 16],
+        [19, 12],
+        [20, 1]
+      ],
+      {
+        gasLimit: "1000000"
+      }
     );
+    // tx = await launcher.setDrawDistributions(
+    //   [6000, 4500, 3000],
+    //   [
+    //     [1000, 2],
+    //     [1100, 9],
+    //     [1200, 20],
+    //     [1300, 18],
+    //     [1400, 6],
+    //     [1500, 18],
+    //     [1600, 12],
+    //     [1700, 15],
+    //     [1800, 16],
+    //     [1900, 12],
+    //     [2000, 1]
+    //   ],
+    //   {
+    //     gasLimit: "1000000"
+    //   }
+    // );
+    await tx.wait();
+    console.log(`setDrawDistributions success. (tx: ${tx.hash})`);
+  } catch (error) {
+    console.error(`setDrawDistributions fail. (tx: ${tx?.hash})`);
+    console.error(error);
+  }
+});
+
+task("OrangeLauncher:startDraw").setAction(async ({}, hre) => {
+  const launcher = await getDeployed<OrangeLauncher__factory>(
+    hre,
+    "OrangeLauncher",
+    LauncherAddress
+  );
+  let tx;
+  try {
+    tx = await launcher.startDraw({
+      gasLimit: "1000000"
+    });
+    await tx.wait();
+    console.log(`startDraw success. (tx: ${tx.hash})`);
+  } catch (error) {
+    console.error(`startDraw fail. (tx: ${tx?.hash})`);
+    console.error(error);
+  }
+});
+
+task("OrangeLauncher:stopDraw").setAction(async ({}, hre) => {
+  const launcher = await getDeployed<OrangeLauncher__factory>(
+    hre,
+    "OrangeLauncher",
+    LauncherAddress
+  );
+  let tx;
+  try {
+    tx = await launcher.stopDraw({
+      gasLimit: "1000000"
+    });
+    await tx.wait();
+    console.log(`stopDraw success. (tx: ${tx.hash})`);
+  } catch (error) {
+    console.error(`stopDraw fail. (tx: ${tx?.hash})`);
+    console.error(error);
+  }
+});
+
+task("OrangeLauncher:reward").setAction(async ({}, hre) => {
+  const users: string[] = [];
+  const launcher = await getDeployed<OrangeLauncher__factory>(
+    hre,
+    "OrangeLauncher",
+    LauncherAddress
+  );
+
+  for (let index = 0; index < users.length; index++) {
+    const user = users[index];
     let tx;
     try {
-      tx = await launcher.setDrawDistributions(
-        [60, 45, 30],
-        [
-          [10, 2],
-          [11, 9],
-          [12, 20],
-          [13, 18],
-          [14, 6],
-          [15, 18],
-          [16, 12],
-          [17, 15],
-          [18, 16],
-          [19, 12],
-          [20, 1]
-        ],
-        {
-          gasLimit: "1000000"
-        }
-      );
+      tx = await launcher.reward(user, index, {
+        gasLimit: "1000000"
+      });
       await tx.wait();
-      console.log(`setDrawDistributions success. (tx: ${tx.hash})`);
+      console.log(`reward to ${user} NFT#${index} success. (tx: ${tx.hash})`);
     } catch (error) {
-      console.error(`setDrawDistributions fail. (tx: ${tx?.hash})`);
+      console.error(`reward to ${user} NFT#${index} fail. (tx: ${tx?.hash})`);
       console.error(error);
     }
   }
-);
+});

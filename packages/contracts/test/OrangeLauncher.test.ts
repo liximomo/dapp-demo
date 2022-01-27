@@ -255,9 +255,9 @@ describe("OrangeLauncher", function () {
       await busd.transfer(launcher.address, parseEther("100"));
       await expect(aliceLauncher.draw(tokenId))
         .to.emit(launcher, "Drawed")
-        .withArgs(alice.address, busd.address, parseEther("10"));
+        .withArgs(alice.address, busd.address, parseEther("0.1"));
       const balance = await busd.balanceOf(alice.address);
-      expect(balance).to.eq(parseEther("10"));
+      expect(balance).to.eq(parseEther("0.1"));
       await expect(aliceLauncher.draw(tokenId)).to.be.revertedWith(
         "can't draw repeatedly"
       );
@@ -269,8 +269,8 @@ describe("OrangeLauncher", function () {
       await launcher.setDrawDistributions(
         [0, 0, 0],
         [
-          [10, 2],
-          [20, 1]
+          [1000, 2],
+          [2000, 1]
         ]
       );
       await launcher.mint(alice.address, "N");
@@ -303,9 +303,9 @@ describe("OrangeLauncher", function () {
       await launcher.setDrawDistributions(
         [0, 0, 0],
         [
-          [10, 2],
-          [15, 1],
-          [20, 1]
+          [1000, 2],
+          [1500, 1],
+          [2000, 1]
         ]
       );
       await launcher.mint(alice.address, "N");
@@ -336,7 +336,7 @@ describe("OrangeLauncher", function () {
       const aliceLauncher = launcher.connect(alice);
       const bobLauncher = launcher.connect(bob);
       await launcher.startDraw();
-      await launcher.setDrawDistributions([60, 30, 10], []);
+      await launcher.setDrawDistributions([6000, 3000, 1000], []);
       await launcher.mint(alice.address, "SSR");
       await launcher.mint(alice.address, "SR");
       await launcher.mint(alice.address, "R");
@@ -393,11 +393,11 @@ describe("OrangeLauncher", function () {
       const davidLauncher = launcher.connect(david);
       await launcher.startDraw();
       await launcher.setDrawDistributions(
-        [60, 45, 30],
+        [6000, 4500, 3000],
         [
-          [10, 2],
-          [15, 1],
-          [20, 1]
+          [1000, 2],
+          [1500, 1],
+          [2000, 1]
         ]
       );
       // 60*1 + 45*2 + 30*3 + 10*2 + 15*1 + 20*1

@@ -23,6 +23,7 @@ contract OrangeLauncher is
   using Strings for uint256;
 
   bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
+  uint256 public constant REWARD_DENOMINATOR = 100;
 
   struct DrawInfo {
     uint256 amouont;
@@ -142,7 +143,7 @@ contract OrangeLauncher is
     require(drawinfo.time == 0, "OrangeLauncher::draw::can't draw repeatedly");
 
     uint256 amouont = _drawReward(id);
-    amouont = amouont * 10**rewardToken.decimals();
+    amouont = amouont * 10**rewardToken.decimals() / REWARD_DENOMINATOR;
     require(
       amouont > 0,
       "OrangeLauncher::draw::amouont must be greater than 0"
