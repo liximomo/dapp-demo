@@ -84,10 +84,10 @@ contract OrangeLauncher is
 
     _setupRole(GOVERNANCE_ROLE, _msgSender());
 
-    categorySupply["SSR"] = _supply[0]; // 1;
-    categorySupply["SR"] = _supply[1]; // 10;
-    categorySupply["R"] = _supply[2]; // 20;
-    categorySupply["N"] = _supply[3]; // 100;
+    categorySupply["SSR"] = _supply[0];
+    categorySupply["SR"] = _supply[1];
+    categorySupply["R"] = _supply[2];
+    categorySupply["N"] = _supply[3];
   }
 
   function totalRareNum() public view returns (uint256) {
@@ -322,7 +322,8 @@ contract OrangeLauncher is
   }
 
   function prepareRewards() public onlyGovernance {
-    for (uint256 index = 0; index < categorySupply["SSR"]; index++) {
+    uint256 total = categorySupply["SSR"];
+    for (uint256 index = 0; index < total; index++) {
       _mint(address(this), "SSR");
     }
   }

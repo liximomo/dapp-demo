@@ -22,10 +22,10 @@ const privateKey = Buffer.from(
 );
 // 0xF9A2E4B92e3A7356c31862F963634172c12878A5
 const truthHolder = privateToAddress(privateKey);
-const ssrNum = 1;
-const srNum = 2;
-const rNum = 3;
-const nNum = 4;
+const ssrNum = 2;
+const srNum = 3;
+const rNum = 4;
+const nNum = 5;
 const rarityRatio = 11;
 const totalClaimableRareNum = srNum + rNum + nNum;
 
@@ -391,13 +391,17 @@ describe("OrangeLauncher", function () {
       await launcher.setDrawDistributions(
         [6000, 4500, 3000],
         [
-          [1000, 2],
+          [1000, 3],
           [1500, 1],
           [2000, 1]
         ]
       );
-      // 60*1 + 45*2 + 30*3 + 10*2 + 15*1 + 20*1
-      await busd.transfer(launcher.address, parseEther("295"));
+      const ssrReward = 60 * ssrNum;
+      const srReward = 45 * srNum;
+      const rReward = 30 * rNum;
+      const nReward = 10 * 3 + 15 * 1 + 20 * 1;
+      const totalReward = ssrReward + srReward + rReward + nReward;
+      await busd.transfer(launcher.address, parseEther(String(totalReward)));
       for (let i = 0; i < ssrNum; i++) {
         await launcher.mint(alice.address, "SSR");
       }
@@ -426,23 +430,37 @@ describe("OrangeLauncher", function () {
       for (let i = 0; i < ssrNum; i++) {
         await aliceLauncher.draw(i);
       }
-      expect(await busd.balanceOf(launcher.address)).to.eq(parseEther("235"));
-      expect(await busd.balanceOf(alice.address)).to.eq(parseEther("60"));
+      expect(await busd.balanceOf(launcher.address)).to.eq(
+        parseEther(String(totalReward - ssrReward))
+      );
+      expect(await busd.balanceOf(alice.address)).to.eq(
+        parseEther(String(ssrReward))
+      );
       for (let i = 0; i < srNum; i++) {
         await bobLauncher.draw(ssrNum + i);
       }
-      expect(await busd.balanceOf(launcher.address)).to.eq(parseEther("145"));
-      expect(await busd.balanceOf(bob.address)).to.eq(parseEther("90"));
+      expect(await busd.balanceOf(launcher.address)).to.eq(
+        parseEther(String(totalReward - ssrReward - srReward))
+      );
+      expect(await busd.balanceOf(bob.address)).to.eq(
+        parseEther(String(srReward))
+      );
       for (let i = 0; i < rNum; i++) {
         await carolLauncher.draw(ssrNum + srNum + i);
       }
-      expect(await busd.balanceOf(launcher.address)).to.eq(parseEther("55"));
-      expect(await busd.balanceOf(carol.address)).to.eq(parseEther("90"));
+      expect(await busd.balanceOf(launcher.address)).to.eq(
+        parseEther(String(totalReward - ssrReward - srReward - rReward))
+      );
+      expect(await busd.balanceOf(carol.address)).to.eq(
+        parseEther(String(rReward))
+      );
       for (let i = 0; i < nNum; i++) {
         await davidLauncher.draw(ssrNum + srNum + rNum + i);
       }
       expect(await busd.balanceOf(launcher.address)).to.eq(parseEther("0"));
-      expect(await busd.balanceOf(david.address)).to.eq(parseEther("55"));
+      expect(await busd.balanceOf(david.address)).to.eq(
+        parseEther(String(nReward))
+      );
     });
   });
 

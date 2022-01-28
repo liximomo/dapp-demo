@@ -47,11 +47,11 @@ task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
 
 task("OrangeLauncher:deploy").setAction(async (_, hre) => {
   // config
-  const ssrNum = 1;
-  const srNum = 1;
-  const rNum = 2;
-  const nNum = 3;
-  const rarityRatio = 100;
+  const ssrNum = 3;
+  const srNum = 5;
+  const rNum = 10;
+  const nNum = 152;
+  const rarityRatio = 40;
   const BUSD = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56";
   const trustHolder = "0xec4f67f785938dB2076C07b834e800dFd7FFc713";
 
@@ -247,5 +247,47 @@ task("OrangeLauncher:reward").setAction(async ({}, hre) => {
       console.error(`reward to ${user} NFT#${index} fail. (tx: ${tx?.hash})`);
       console.error(error);
     }
+  }
+});
+
+task("OrangeLauncher:recoverToken").setAction(async ({}, hre) => {
+  const launcher = await getDeployed<OrangeLauncher__factory>(
+    hre,
+    "OrangeLauncher",
+    LauncherAddress
+  );
+  const busd = await getDeployed<ERC20Mock__factory>(
+    hre,
+    "ERC20Mock",
+    "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
+  );
+
+  let tx;
+  try {
+    const balance = await busd.balanceOf(LauncherAddress);
+    tx = await launcher.recoverToken(busd.address, balance, {
+      gasLimit: "1000000"
+    });
+    await tx.wait();
+    console.log(`recoverToken success. (tx: ${tx.hash})`);
+  } catch (error) {
+    console.error(`recoverToken fail. (tx: ${tx?.hash})`);
+    console.error(error);
+  }
+});
+
+task("OrangeLauncher:info").setAction(async ({}, hre) => {
+  const launcher = await getDeployed<OrangeLauncher__factory>(
+    hre,
+    "OrangeLauncher",
+    LauncherAddress
+  );
+  try {
+    const res = await launcher.categorySupply("SSR", {
+      gasLimit: "1000000"
+    });
+    console.log("res", res.toString());
+  } catch (error) {
+    console.error(error);
   }
 });
