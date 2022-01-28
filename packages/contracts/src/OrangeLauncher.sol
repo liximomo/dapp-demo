@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 import "./OrangeAvatar.sol";
 import "./ECDSA.sol";
 import "hardhat/console.sol";
@@ -19,8 +20,13 @@ contract OrangeLauncher is
   ReentrancyGuard,
   IERC721Receiver
 {
+  using Counters for Counters.Counter;
   using SafeERC20 for ERC20;
   using Strings for uint256;
+
+  Counters.Counter private _rareIds;
+  Counters.Counter private _souvenirIds;
+  uint256 private _souvenirIdBase;
 
   bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
   uint256 public constant REWARD_DENOMINATOR = 100;
@@ -88,6 +94,7 @@ contract OrangeLauncher is
     categorySupply["SR"] = _supply[1];
     categorySupply["R"] = _supply[2];
     categorySupply["N"] = _supply[3];
+    _souvenirIdBase = totalRareNum();
   }
 
   function totalRareNum() public view returns (uint256) {
@@ -122,7 +129,8 @@ contract OrangeLauncher is
     );
 
     claimRecords[user] = true;
-    uint256 id = _mint(user, _getCategory(string(signature)));
+    (uint256 id, string memory ctg) = _getTokenAndCategory(string(signature));
+    _mint(user, id, ctg);
     emit Claimed(user, id);
   }
 
@@ -186,15 +194,15 @@ contract OrangeLauncher is
     return value;
   }
 
-  function _getCategory(string memory prefix)
+  function _getTokenAndCategory(string memory prefix)
     internal
-    view
-    returns (string memory)
+    returns (uint256, string memory)
   {
     uint256 rareleft = totalRareNum();
     string memory category;
     uint256 rand = _random(string(abi.encodePacked(prefix, "rare")), 1, 100);
     bool rare = rand <= rarityRatio;
+    uint256 tokenId;
 
     if (rare && rareleft > 0) {
       uint256 id = _random(prefix, 1, rareleft);
@@ -211,13 +219,17 @@ contract OrangeLauncher is
       } else if (id >= pivot2 + 1 && id <= pivot3) {
         category = "N";
       } else {
-        require(false, "OrangeLauncher::_getCategory::something wrong");
+        require(false, "OrangeLauncher::_getTokenAndCategory::something wrong");
       }
+      tokenId = _rareIds.current();
+      _rareIds.increment();
     } else {
+      tokenId = _souvenirIds.current() + _souvenirIdBase;
+      _souvenirIds.increment();
       category = "SOUVENIR";
     }
 
-    return category;
+    return (tokenId, category);
   }
 
   function _random(
@@ -287,10 +299,11 @@ contract OrangeLauncher is
     _drawDistributions.pop();
   }
 
-  function _mint(address to, string memory category)
-    internal
-    returns (uint256 id)
-  {
+  function _mint(
+    address to,
+    uint256 tokenId,
+    string memory category
+  ) internal {
     if (keccak256(bytes(category)) != keccak256("SOUVENIR")) {
       require(
         categorySupply[category] > 0,
@@ -300,8 +313,9 @@ contract OrangeLauncher is
     }
 
     uint256 ctdId = avatarNFT.categoryIdByRarity(category);
-    id = avatarNFT.mint(to, ctdId);
-    emit Minted(to, id);
+    avatarNFT.mint(to, tokenId, ctdId);
+    console.log("token", tokenId, category);
+    emit Minted(to, tokenId);
   }
 
   function onERC721Received(
@@ -313,18 +327,20 @@ contract OrangeLauncher is
     return IERC721Receiver.onERC721Received.selector;
   }
 
-  function mint(address to, string memory category)
-    public
-    onlyGovernance
-    returns (uint256 id)
-  {
-    return _mint(to, category);
+  function mint(
+    address to,
+    uint256 tokenId,
+    string memory category
+  ) public onlyGovernance {
+    _mint(to, tokenId, category);
   }
 
   function prepareRewards() public onlyGovernance {
     uint256 total = categorySupply["SSR"];
     for (uint256 index = 0; index < total; index++) {
-      _mint(address(this), "SSR");
+      uint256 id = _rareIds.current();
+      _rareIds.increment();
+      _mint(address(this), id, "SSR");
     }
   }
 

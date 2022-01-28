@@ -19,7 +19,6 @@ contract OrangeAvatar is Ownable, ERC721Enumerable, ERC721Pausable {
 
   address public minter;
 
-  Counters.Counter private _tokenIds;
   Counters.Counter private _categoryIds;
 
   mapping(uint256 => Category) public categoryInfo;
@@ -90,22 +89,19 @@ contract OrangeAvatar is Ownable, ERC721Enumerable, ERC721Pausable {
    *
    * - the caller must have the `MINTER_ROLE`.
    */
-  function mint(address to, uint256 categoryId)
-    external
-    onlyMinter
-    returns (uint256 id)
-  {
+  function mint(
+    address to,
+    uint256 tokenId,
+    uint256 categoryId
+  ) external onlyMinter {
     require(
       0 < categoryId && categoryId <= _categoryIds.current(),
       "OrangeAvatar::mint::invalid categoryId"
     );
 
-    uint256 newId = _tokenIds.current();
-    _tokenIds.increment();
-    idToCategory[newId] = categoryId;
+    idToCategory[tokenId] = categoryId;
 
-    _mint(to, newId);
-    return newId;
+    _mint(to, tokenId);
   }
 
   function _baseURI() internal view override returns (string memory) {

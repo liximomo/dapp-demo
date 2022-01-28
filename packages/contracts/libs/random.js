@@ -1,5 +1,4 @@
-function getDistributions(num, min, max) {
-  let total = Math.ceil(((max + min) / 2) * num);
+function getDistributions(num, total, min, max) {
   const res = [];
   const random = () => Math.floor(Math.random() * (max - min + 1) + min);
 
@@ -40,4 +39,10 @@ function getDistributions(num, min, max) {
   return r;
 }
 
-const res = getDistributions(152, 10, 20);
+const res = getDistributions(152, 2295, 10, 20);
+console.log("res", res);
+
+const total = Object.keys(res)
+  .map(key => [key, res[key]])
+  .reduce((acc, i) => acc + i[0] * i[1], 0);
+console.log("total", total);

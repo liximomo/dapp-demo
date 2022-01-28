@@ -84,7 +84,8 @@ task("OrangeLauncher:deploy").setAction(async (_, hre) => {
 task("OrangeLauncher:mint")
   .addParam("type")
   .addParam("to")
-  .setAction(async ({ to, type }, hre) => {
+  .addParam("id")
+  .setAction(async ({ to, id, type }, hre) => {
     const launcher = await getDeployed<OrangeLauncher__factory>(
       hre,
       "OrangeLauncher",
@@ -93,7 +94,7 @@ task("OrangeLauncher:mint")
 
     let tx;
     try {
-      tx = await launcher.mint(to, type.toUpperCase(), {
+      tx = await launcher.mint(to, type.toUpperCase(), id, {
         gasLimit: "1000000"
       });
       await tx.wait();
