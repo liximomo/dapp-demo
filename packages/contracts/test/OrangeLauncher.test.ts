@@ -155,7 +155,7 @@ describe("OrangeLauncher", function () {
       );
     });
 
-    it.skip("should distribute nft as expected (real case)", async function () {
+    it("should distribute nft as expected (real case)", async function () {
       this.timeout(30 * 60 * 1000);
       const count = {
         SSR: 0,
@@ -414,7 +414,6 @@ describe("OrangeLauncher", function () {
         [2000, 9]
       ];
       await launcher.startDraw();
-      await launcher.setDrawDistributions([6000, 4500, 3000], rewards);
       const totalNoralRewards = rewards.reduce(
         (acc, i) => acc + (i[0] * i[1]) / 100,
         0

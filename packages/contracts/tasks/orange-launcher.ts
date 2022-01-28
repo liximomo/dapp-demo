@@ -7,8 +7,8 @@ import {
 import { deploy, getDeployed } from "../libs/deploy";
 import { getSignature } from "../libs/sign";
 
-const AvatarAddress = "0xF2062f3D4E10258b43E292DA073445c5552A9df0";
-const LauncherAddress = "0xA2a032f5D0e419d7F01816309eFe001f4023c5d7";
+const AvatarAddress = "0x0e97d33590353F7A41Ee5B806Aa63CFd162bE4AD";
+const LauncherAddress = "0xE037a037592191756586FC50Dbf49954Bfe31011";
 
 task("OrangeLauncher:deploy:test").setAction(async (_, hre) => {
   // config
@@ -51,7 +51,7 @@ task("OrangeLauncher:deploy").setAction(async (_, hre) => {
   const srNum = 5;
   const rNum = 10;
   const nNum = 152;
-  const rarityRatio = 40;
+  const rarityRatio = 11;
   const BUSD = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56";
   const trustHolder = "0xec4f67f785938dB2076C07b834e800dFd7FFc713";
 
@@ -284,10 +284,45 @@ task("OrangeLauncher:info").setAction(async ({}, hre) => {
     LauncherAddress
   );
   try {
-    const res = await launcher.categorySupply("SSR", {
+    const ssrNum = await launcher.categorySupply("SSR", {
       gasLimit: "1000000"
     });
-    console.log("res", res.toString());
+    const srNum = await launcher.categorySupply("SR", {
+      gasLimit: "1000000"
+    });
+    const rNum = await launcher.categorySupply("R", {
+      gasLimit: "1000000"
+    });
+    const nNum = await launcher.categorySupply("N", {
+      gasLimit: "1000000"
+    });
+    const rarity = await launcher.rarityRatio();
+    console.log("ssrNum", ssrNum.toString());
+    console.log("srNum", srNum.toString());
+    console.log("rNum", rNum.toString());
+    console.log("nNum", nNum.toString());
+    console.log("rarity", rarity.toString());
+  } catch (error) {
+    console.error(error);
+  }
+});
+
+task("OrangeLauncher:claim-logs").setAction(async ({}, hre) => {
+  const launcher = await getDeployed<OrangeLauncher__factory>(
+    hre,
+    "OrangeLauncher",
+    LauncherAddress
+  );
+
+  const ClaimedEvent = launcher.filters.Claimed(null, null);
+  try {
+    const logs = await launcher.provider.getLogs({
+      fromBlock: 14753710,
+      toBlock: "latest",
+      address: launcher.address,
+      topics: ClaimedEvent.topics
+    });
+    console.log("logs", logs);
   } catch (error) {
     console.error(error);
   }

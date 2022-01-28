@@ -12,7 +12,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "./OrangeAvatar.sol";
 import "./ECDSA.sol";
-import "hardhat/console.sol";
 
 contract OrangeLauncher is
   AccessControlEnumerable,
@@ -48,17 +47,17 @@ contract OrangeLauncher is
   mapping(string => uint256) public categorySupply;
   uint256[3] private _drawDistributionsFixed = [6000, 4500, 3000];
   uint256[2][] private _drawDistributions = [
-    [1000, 2],
-    [1100, 9],
-    [1200, 20],
-    [1300, 18],
-    [1400, 6],
-    [1500, 18],
+    [1000, 6],
+    [1100, 19],
+    [1200, 13],
+    [1300, 13],
+    [1400, 18],
+    [1500, 13],
     [1600, 12],
-    [1700, 15],
-    [1800, 16],
-    [1900, 12],
-    [2000, 1]
+    [1700, 17],
+    [1800, 15],
+    [1900, 17],
+    [2000, 9]
   ];
 
   event Claimed(address indexed user, uint256 indexed tokenId);
@@ -314,7 +313,6 @@ contract OrangeLauncher is
 
     uint256 ctdId = avatarNFT.categoryIdByRarity(category);
     avatarNFT.mint(to, tokenId, ctdId);
-    console.log("token", tokenId, category);
     emit Minted(to, tokenId);
   }
 
